@@ -5,7 +5,7 @@ A portfolio project demonstrating an AI-powered skills marketplace with multi-ag
 
 Target audience: Ramp hiring team for the **AI Operations Specialist | Agentic Workflows** role (also called *AI Product Operator* in the JD body). This project mirrors Ramp's internal Dojo (skill marketplace) and Sensei (AI routing layer), with the addition of multi-skill chaining that demonstrates genuinely agentic workflows.
 
-**Live demo:** <https://ramp-skills-marketplace.vercel.app/> · **Submission bundle:** `MEMO.md` (memo), `docs/architecture.md` (Mermaid flow diagram), `LOOM-OUTLINE.md` (90s recording script). All at repo root.
+**Live demo:** <https://ramp-skills-marketplace.vercel.app/> · **Submission bundle:** `MEMO.md` (memo), `flow-diagram.md` (Mermaid flow diagram). All at repo root.
 
 ## Tech Stack
 - **Framework**: Next.js 14 (App Router)
@@ -34,9 +34,7 @@ agents/                       # Agent prompts as markdown (loaded at server star
 
 AGENTS.md                     # Repo-root doc explaining the 3-agent pipeline
 MEMO.md                       # §6 submission memo (~1.5pp, 7 sections)
-LOOM-OUTLINE.md               # §6 90s recording script (6 beats)
-docs/
-└── architecture.md           # §6 Mermaid flow diagram + Ramp-internals mapping
+flow-diagram.md               # §6 Mermaid flow diagram + Ramp-internals mapping
 
 scripts/
 └── build-skill-metadata.mjs  # Codegen: skills/*.md → src/lib/skill-metadata.ts

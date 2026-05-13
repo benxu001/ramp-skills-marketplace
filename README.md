@@ -187,9 +187,7 @@ skills/                         # 6 markdown files — Dojo-style file-backed re
 agents/                         # 4 agent prompts as markdown — orchestrator / executor / synthesizer / diagnostician
 AGENTS.md                       # Standalone explainer for the agent pipeline
 MEMO.md                         # §6 submission memo (~1.5pp)
-LOOM-OUTLINE.md                 # §6 90s recording script
-docs/
-└── architecture.md             # §6 Mermaid flow diagram + Ramp-internals mapping
+flow-diagram.md                 # §6 Mermaid flow diagram + Ramp-internals mapping
 
 scripts/
 └── build-skill-metadata.mjs    # Codegen — emits src/lib/skill-metadata.ts on predev/prebuild/prelint

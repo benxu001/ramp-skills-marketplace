@@ -4,7 +4,7 @@
 **Author:** Ben Xu · `ben.xu01@gmail.com`
 **Date:** 2026-05-13
 **Live demo:** <https://ramp-skills-marketplace.vercel.app/> · **Repo:** <https://github.com/benxu001/ramp-skills-marketplace>
-**Companion artifacts:** [`docs/architecture.md`](docs/architecture.md) (flow diagram), [`LOOM-OUTLINE.md`](LOOM-OUTLINE.md) (90s recording script), [`AGENTS.md`](AGENTS.md) (agent pipeline doc).
+**Companion artifacts:** [`flow-diagram.md`](flow-diagram.md) (Mermaid flow diagram), [`AGENTS.md`](AGENTS.md) (agent pipeline doc).
 
 ---
 
@@ -28,7 +28,7 @@ The cost of *not* chaining isn't a missing feature; it's a UX tax that grows wit
 
 ## What I built
 
-**3-agent request pipeline** (see [`docs/architecture.md`](docs/architecture.md) for the flow diagram):
+**3-agent request pipeline** (see [`flow-diagram.md`](flow-diagram.md) for the flow diagram):
 
 1. **Orchestrator** (`agents/orchestrator.md`) — reads the query + skill registry, returns an `ExecutionPlan` JSON: ordered skill IDs, confidence (0–1, calibrated to a 5-band rubric), and a reasoning trail.
 2. **Executor** (`agents/executor.md`) — runs each skill sequentially. For chained skills, the prior output is injected as a `## Prior Analysis` block in the next skill's user message. No shared state, no orchestration framework — just context injection.
@@ -48,7 +48,7 @@ The chat UI shows the chosen chain as a row of badges with arrows above the resp
 - **QA Flags** — *deterministic* rules over the data: low-approval skill, chain with majority 👎, recent confidence < 0.5, fallback rate > 10%. No LLM call, no flicker, no hallucinated alerts.
 - **Diagnose with Claude** — a button that ships the telemetry blob to `agents/diagnostician.md`, a fourth analyst agent that returns a prioritized markdown report: top 1–3 issues with diagnosis + fix (citing specific skill files to edit), plus one positive signal. Capped at 250 words. Cost per click ~$0.01; gated behind an explicit click.
 
-**Everything is markdown-defined.** Six skills, four agents (orchestrator / executor / synthesizer / diagnostician), and the in-repo docs (`AGENTS.md`, `CLAUDE.md`, `docs/architecture.md`) are all `.md` files an operator can edit without touching TypeScript. That's the right shape for an internal AI tool: optimize for prompt-iteration speed.
+**Everything is markdown-defined.** Six skills, four agents (orchestrator / executor / synthesizer / diagnostician), and the in-repo docs (`AGENTS.md`, `CLAUDE.md`, `flow-diagram.md`) are all `.md` files an operator can edit without touching TypeScript. That's the right shape for an internal AI tool: optimize for prompt-iteration speed.
 
 ---
 
