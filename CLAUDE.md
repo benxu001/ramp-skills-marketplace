@@ -50,13 +50,15 @@ src/
 │   ├── executor.ts           # Agent 2: Runs skills in sequence, passing outputs forward
 │   ├── synthesizer.ts        # Agent 3: Combines multi-skill outputs into one response
 │   ├── roleRecommendations.ts # Role → top-3 skill IDs map (Sensei surfacing layer)
-│   └── types.ts              # Shared TypeScript types (Skill + SkillMeta)
+│   ├── feedback.ts           # 👍/👎 localStorage layer (key: skill-router:feedback)
+│   └── types.ts              # Shared TS types (Skill, SkillMeta, FeedbackEntry, ChatMessage…)
 ├── components/
-│   ├── ChatPanel.tsx         # Chat interface (left panel)
+│   ├── ChatPanel.tsx         # Chat interface (left panel); threads feedback to MessageBubble
 │   ├── SkillCard.tsx         # Individual skill display card (supports Recommended badge)
 │   ├── SkillMarketplace.tsx  # Grid of available skills (right panel); owns role-based reorder
 │   ├── RoleStrip.tsx         # Sensei chip strip above marketplace (5 roles + clear)
-│   ├── MessageBubble.tsx     # Chat message component
+│   ├── MessageBubble.tsx     # Chat message component; renders 👍/👎 on real assistant messages
+│   ├── SessionStats.tsx      # Footer pill: queries · chains · avg confidence · fallbacks · 👍/👎
 │   ├── SkillBadge.tsx        # Shows which skill(s) were used for a response
 │   └── ExecutionPlan.tsx     # Visual display of the orchestrator's plan
 ```
@@ -128,6 +130,7 @@ Final Response (with execution plan metadata)
 - **Chaining via context injection**: each skill's output is prepended to the next skill's user message as "Prior analysis" context — no shared memory or state management needed
 - Skills are **markdown-defined** under `skills/` (extended frontmatter + system-prompt body), parsed by `gray-matter` — Dojo-style file-backed registry without a database
 - The UI shows the **full execution plan** visually — which skills ran, in what order, with confidence
+- **Feedback persists to `localStorage`**, not a backend — `skill-router:feedback` is the key. Session stats survive reload; switching browsers / clearing site data resets them. No PII leaves the device.
 - No auth needed — this is a demo app
 
 ## Environment Variables
