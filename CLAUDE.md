@@ -3,7 +3,9 @@
 ## What This Is
 A portfolio project demonstrating an AI-powered skills marketplace with multi-agent orchestration (inspired by Ramp's Dojo + Sensei). Users type natural language requests, and a 3-agent system plans, executes, and synthesizes responses — automatically chaining multiple skills when a query requires it.
 
-Target audience: Ramp hiring team for the "AI Product Operator" role. This project mirrors Ramp's internal Dojo (skill marketplace) and Sensei (AI routing layer), with the addition of multi-skill chaining that demonstrates genuinely agentic workflows.
+Target audience: Ramp hiring team for the **AI Operations Specialist | Agentic Workflows** role (also called *AI Product Operator* in the JD body). This project mirrors Ramp's internal Dojo (skill marketplace) and Sensei (AI routing layer), with the addition of multi-skill chaining that demonstrates genuinely agentic workflows.
+
+**Live demo:** <https://ramp-skills-marketplace.vercel.app/> · **Submission bundle:** `MEMO.md` (memo), `docs/architecture.md` (Mermaid flow diagram), `LOOM-OUTLINE.md` (90s recording script). All at repo root.
 
 ## Tech Stack
 - **Framework**: Next.js 14 (App Router)
@@ -31,6 +33,10 @@ agents/                       # Agent prompts as markdown (loaded at server star
 └── diagnostician.md          # Body = system prompt for the Insights "Diagnose with Claude" agent
 
 AGENTS.md                     # Repo-root doc explaining the 3-agent pipeline
+MEMO.md                       # §6 submission memo (~1.5pp, 7 sections)
+LOOM-OUTLINE.md               # §6 90s recording script (6 beats)
+docs/
+└── architecture.md           # §6 Mermaid flow diagram + Ramp-internals mapping
 
 scripts/
 └── build-skill-metadata.mjs  # Codegen: skills/*.md → src/lib/skill-metadata.ts
@@ -55,7 +61,9 @@ src/
 │   ├── feedback.ts           # 👍/👎 localStorage layer (key: skill-router:feedback)
 │   ├── stats.ts              # Per-response stats localStorage layer (key: skill-router:stats)
 │   ├── insights.ts           # Pure rollups + 20-entry synthetic seed for the Insights tab
+│   ├── ratelimit.ts          # In-memory sliding-window limiter used by middleware
 │   └── types.ts              # Shared TS types (Skill, SkillMeta, FeedbackEntry, ChatMessage…)
+├── middleware.ts             # Per-IP rate limiting on /api/chat and /api/diagnose
 ├── components/
 │   ├── ChatPanel.tsx         # Chat interface (left panel); threads feedback to MessageBubble
 │   ├── SkillCard.tsx         # Individual skill display card (supports Recommended badge)
@@ -147,6 +155,7 @@ Final Response (with execution plan metadata)
 - **Insights tab is "AI-built" twice over** — the dashboard itself is built by Claude as part of the app, *and* the "Diagnose with Claude" panel ships the localStorage telemetry to a 4th agent (`agents/diagnostician.md`) that returns a markdown report citing specific skill files to edit. Maps directly to the JD bullet on "AI-built dashboards, QA checks, and iteratively improve based on user feedback."
 - **QA flags are deterministic, not LLM-generated** — predictable, no per-render API call, no hallucinated alerts. Only the Diagnose panel is LLM-backed, and it's gated behind an explicit button click.
 - **Desktop nav exposes only an "Insights" toggle**; chat + skills are always side-by-side on `md+`. Mobile still gets the 3-tab pill switcher.
+- **Per-IP rate limiting via `src/middleware.ts`** — `/api/chat` at 2 req/min, `/api/diagnose` at 1 req/2min. Uses an in-memory sliding-window limiter (`src/lib/ratelimit.ts`); per-instance, not global. First line of defense against drive-by scraping; the hard spend cap is set on the Anthropic key in the Console.
 - No auth needed — this is a demo app
 
 ## Environment Variables

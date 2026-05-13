@@ -6,7 +6,7 @@ A multi-agent skills marketplace where users type natural-language finance reque
 
 A separate **Insights** tab turns the session's usage into a feedback loop — per-skill 👍/👎 rollups, a routing-health score, deterministic QA flags, and a *"Diagnose with Claude"* button that hands the telemetry to a 4th analyst agent which returns prompt-level fixes citing specific skill files to edit.
 
-Built as a portfolio piece for the Ramp **AI Product Operator** role.
+Built as a portfolio piece for the Ramp **AI Operations Specialist | Agentic Workflows** role.
 
 ---
 
@@ -159,6 +159,7 @@ npm run lint     # eslint
 - **Skill loading** — `gray-matter` for the `skills/*.md` frontmatter; codegen produces a client-safe metadata snapshot
 - **Language** — TypeScript, strict mode
 - **Persistence** — `localStorage` keys `skill-router:feedback` and `skill-router:stats` (no backend, no PII off-device)
+- **Rate limiting** — `src/middleware.ts` caps `/api/chat` at 2 req/min per IP, `/api/diagnose` at 1 req/2min per IP. In-memory sliding-window (per-instance, not global) — first line of defense against drive-by scraping; the hard spend cap is set on the Anthropic key.
 
 ---
 
@@ -185,6 +186,10 @@ _To be added after demo recording._
 skills/                         # 6 markdown files — Dojo-style file-backed registry
 agents/                         # 4 agent prompts as markdown — orchestrator / executor / synthesizer / diagnostician
 AGENTS.md                       # Standalone explainer for the agent pipeline
+MEMO.md                         # §6 submission memo (~1.5pp)
+LOOM-OUTLINE.md                 # §6 90s recording script
+docs/
+└── architecture.md             # §6 Mermaid flow diagram + Ramp-internals mapping
 
 scripts/
 └── build-skill-metadata.mjs    # Codegen — emits src/lib/skill-metadata.ts on predev/prebuild/prelint
