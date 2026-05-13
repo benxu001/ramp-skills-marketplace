@@ -1,10 +1,10 @@
 'use client';
 
-import type { Skill } from '@/lib/types';
+import type { SkillMeta } from '@/lib/types';
 import { cardAccentClasses, exampleChipClasses } from '@/lib/colors';
 
 type Props = {
-  skill: Skill;
+  skill: SkillMeta;
   onExampleClick: (example: string) => void;
 };
 
