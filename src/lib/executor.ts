@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { EXECUTOR_USER_TEMPLATE } from './agents';
 import type { ExecutionPlan, Skill, SkillResult } from './types';
 
 const MODEL = 'claude-sonnet-4-5';
@@ -19,13 +20,10 @@ function buildUserMessage(
     .map((r) => `[${r.skillName}] produced:\n${r.output}`)
     .join('\n\n');
 
-  return `--- Prior Analysis ---
-${priorBlock}
----
-
-Now, given the above context and the user's original request below, perform your analysis.
-
-User request: ${userMessage}`;
+  return EXECUTOR_USER_TEMPLATE.replace('{{PRIOR_BLOCK}}', priorBlock).replace(
+    '{{USER_MESSAGE}}',
+    userMessage,
+  );
 }
 
 export async function executeSkills(
