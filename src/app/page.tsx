@@ -1,100 +1,219 @@
-import Image from "next/image";
+'use client';
+
+import { useRef, useState } from 'react';
+import ChatPanel, { ChatPanelHandle } from '@/components/ChatPanel';
+import SkillMarketplace from '@/components/SkillMarketplace';
+import type { ChatMessage, ChatStreamEvent } from '@/lib/types';
+
+const WELCOME: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content:
+    "Welcome to **Skill Router**. I can help with expense categorization, vendor risk assessment, invoice extraction, policy compliance, spend anomaly detection, and meeting cost calculation. Try typing a request — or click an example from the marketplace on the right.",
+  timestamp: new Date(),
+};
+
+type Tab = 'chat' | 'skills';
+
+function newId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [loading, setLoading] = useState(false);
+  const [statusLine, setStatusLine] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>('chat');
+  const chatRef = useRef<ChatPanelHandle>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const runQuery = async (text: string) => {
+    const userMessage: ChatMessage = {
+      id: newId(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+    setMessages((m) => [...m, userMessage]);
+    setLoading(true);
+    setStatusLine('Planning…');
+
+    const finishWithError = (msg: string) => {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: msg,
+          error: true,
+          retryPrompt: text,
+          timestamp: new Date(),
+        },
+      ]);
+    };
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+
+      if (!res.ok || !res.body) {
+        finishWithError(
+          `Server returned ${res.status}. Please try again.`,
+        );
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let sawFinal = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          let event: ChatStreamEvent;
+          try {
+            event = JSON.parse(trimmed) as ChatStreamEvent;
+          } catch {
+            continue;
+          }
+          handleEvent(event);
+          if (event.type === 'final') sawFinal = true;
+          if (event.type === 'error') {
+            finishWithError(event.message);
+            sawFinal = true;
+          }
+        }
+      }
+
+      if (!sawFinal) {
+        finishWithError(
+          'The connection ended before a response was received. Please try again.',
+        );
+      }
+    } catch {
+      finishWithError(
+        "I couldn't reach the server. Check that the dev server is running and try again.",
+      );
+    } finally {
+      setLoading(false);
+      setStatusLine(null);
+    }
+  };
+
+  const handleEvent = (event: ChatStreamEvent) => {
+    switch (event.type) {
+      case 'plan':
+        // We could surface the plan here, but spec says "ExecutionPlan
+        // appears followed by the response" — so we just keep the status
+        // line moving until we know which skill is running.
+        return;
+      case 'step_start':
+        setStatusLine(`Executing: ${event.skillName}…`);
+        return;
+      case 'step_done':
+        return;
+      case 'synth_start':
+        setStatusLine('Synthesizing results…');
+        return;
+      case 'final':
+        setMessages((m) => [
+          ...m,
+          {
+            id: newId(),
+            role: 'assistant',
+            content: event.reply,
+            executionPlan: event.executionPlan ?? undefined,
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      case 'error':
+        // handled by runQuery via finishWithError
+        return;
+    }
+  };
+
+  const handleExampleClick = (example: string) => {
+    chatRef.current?.setInput(example);
+    setTab('chat');
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="border-b border-border bg-bg/80 backdrop-blur sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span
+              className="font-mono text-lg font-semibold tracking-tight"
+              aria-label="Skill Router logo"
+            >
+              <span className="text-violet-400">{'>_'}</span>{' '}
+              <span className="text-text">Skill Router</span>
+            </span>
+            <span className="hidden sm:inline text-xs text-muted ml-2">
+              3-agent skills marketplace
+            </span>
+          </div>
+          <nav className="md:hidden flex rounded-lg border border-border p-0.5 bg-surface">
+            {(['chat', 'skills'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`px-3 py-1 text-xs uppercase tracking-wider rounded-md transition-colors ${
+                  tab === t
+                    ? 'bg-violet-500 text-white'
+                    : 'text-muted hover:text-text'
+                }`}
+              >
+                {t === 'chat' ? 'Chat' : 'Skills'}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-4 md:py-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 h-[calc(100vh-9rem)]">
+          <section
+            className={`md:col-span-3 ${
+              tab === 'chat' ? 'flex' : 'hidden md:flex'
+            } flex-col min-h-0`}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            <ChatPanel
+              ref={chatRef}
+              messages={messages}
+              loading={loading}
+              statusLine={statusLine}
+              onSend={runQuery}
+              onRetry={runQuery}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </section>
+          <aside
+            className={`md:col-span-2 ${
+              tab === 'skills' ? 'flex' : 'hidden md:flex'
+            } flex-col min-h-0`}
           >
-            Read our docs
-          </a>
+            <SkillMarketplace onExampleClick={handleExampleClick} />
+          </aside>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      <footer className="py-3 text-center text-[10px] text-muted">
+        Built for Ramp · AI Product Operator Application
       </footer>
     </div>
   );
