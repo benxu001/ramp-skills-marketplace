@@ -28,9 +28,9 @@ flowchart TD
     I -->|Diagnose with Claude| D
     D -.->|edit suggestions| SK
 
-    classDef agent fill:#a78bfa20,stroke:#a78bfa,stroke-width:2px,color:#e5e7eb
-    classDef data fill:#34d39920,stroke:#34d399,stroke-width:1px,color:#e5e7eb
-    classDef io fill:#fbbf2420,stroke:#fbbf24,stroke-width:1px,color:#e5e7eb
+    classDef agent fill:#a78bfa20,stroke:#a78bfa,stroke-width:2px,color:#1f2937
+    classDef data fill:#34d39920,stroke:#34d399,stroke-width:1px,color:#1f2937
+    classDef io fill:#fbbf2420,stroke:#fbbf24,stroke-width:1px,color:#1f2937
 
     class O,E,S,D agent
     class SK,LS data
