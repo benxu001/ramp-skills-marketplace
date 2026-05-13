@@ -37,3 +37,4 @@ function loadTemplate(name: string): string {
 export const ORCHESTRATOR_SYSTEM_PROMPT = loadSystemPrompt('orchestrator');
 export const SYNTHESIZER_SYSTEM_PROMPT = loadSystemPrompt('synthesizer');
 export const EXECUTOR_USER_TEMPLATE = loadTemplate('executor');
+export const DIAGNOSTICIAN_SYSTEM_PROMPT = loadSystemPrompt('diagnostician');

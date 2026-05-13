@@ -7,6 +7,10 @@ export type ResponseStat = {
   confidence: number | null;
   /** True for failed requests (network error, server 5xx, etc.). */
   error: boolean;
+  /** Skill IDs that produced the message, in execution order. Empty for errors. */
+  skillIds: string[];
+  /** Wall-clock time the response landed (epoch ms). Used by insights views. */
+  timestamp: number;
 };
 
 export type StatsBlob = {
@@ -38,7 +42,18 @@ export function loadStats(): StatsBlob {
     ) {
       return emptyBlob();
     }
-    return parsed as StatsBlob;
+    const stats = parsed as StatsBlob;
+    const responses: Record<string, ResponseStat> = {};
+    for (const [id, r] of Object.entries(stats.responses)) {
+      responses[id] = {
+        stepCount: r.stepCount ?? 0,
+        confidence: r.confidence ?? null,
+        error: !!r.error,
+        skillIds: Array.isArray(r.skillIds) ? r.skillIds : [],
+        timestamp: typeof r.timestamp === 'number' ? r.timestamp : 0,
+      };
+    }
+    return { queries: stats.queries, responses };
   } catch {
     return emptyBlob();
   }
@@ -72,6 +87,12 @@ export function recordResponse(
     queries: stats.queries,
     responses: { ...stats.responses, [messageId]: stat },
   };
+  persist(next);
+  return next;
+}
+
+export function clearStats(): StatsBlob {
+  const next = emptyBlob();
   persist(next);
   return next;
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import ChatPanel, { ChatPanelHandle } from '@/components/ChatPanel';
 import SkillMarketplace from '@/components/SkillMarketplace';
 import SessionStats from '@/components/SessionStats';
+import InsightsPanel from '@/components/InsightsPanel';
 import type { ChatMessage, ChatStreamEvent } from '@/lib/types';
 import {
   type FeedbackMap,
@@ -17,6 +18,7 @@ import {
   recordQuery,
   recordResponse,
 } from '@/lib/stats';
+import { clearInsights, seedInsights } from '@/lib/insights';
 
 const WELCOME: ChatMessage = {
   id: 'welcome',
@@ -25,7 +27,13 @@ const WELCOME: ChatMessage = {
     "Welcome to **Skill Router**. I can help with expense categorization, vendor risk assessment, invoice extraction, policy compliance, spend anomaly detection, and meeting cost calculation. Try typing a request — or click an example from the marketplace on the right.",
 };
 
-type Tab = 'chat' | 'skills';
+type Tab = 'chat' | 'skills' | 'insights';
+
+const TAB_LABELS: Record<Tab, string> = {
+  chat: 'Chat',
+  skills: 'Skills',
+  insights: 'Insights',
+};
 
 function newId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -51,6 +59,18 @@ export default function Home() {
     setFeedback(loadFeedback());
     setStats(loadStats());
   }, []);
+
+  const handleSeed = () => {
+    const next = seedInsights();
+    setStats(next.stats);
+    setFeedback(next.feedback);
+  };
+
+  const handleClearInsights = () => {
+    const next = clearInsights();
+    setStats(next.stats);
+    setFeedback(next.feedback);
+  };
 
   const handleFeedback = (messageId: string, rating: 'up' | 'down') => {
     const idx = messages.findIndex((m) => m.id === messageId);
@@ -112,6 +132,8 @@ export default function Home() {
           stepCount: 0,
           confidence: null,
           error: true,
+          skillIds: [],
+          timestamp: Date.now(),
         }),
       );
     };
@@ -207,6 +229,8 @@ export default function Home() {
             stepCount: event.executionPlan?.steps.length ?? 0,
             confidence: event.executionPlan?.confidence ?? null,
             error: false,
+            skillIds: event.executionPlan?.steps.map((s) => s.skillId) ?? [],
+            timestamp: Date.now(),
           }),
         );
         return;
@@ -239,7 +263,7 @@ export default function Home() {
             </span>
           </div>
           <nav className="md:hidden flex rounded-lg border border-border p-0.5 bg-surface">
-            {(['chat', 'skills'] as Tab[]).map((t) => (
+            {(['chat', 'skills', 'insights'] as Tab[]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -250,43 +274,65 @@ export default function Home() {
                     : 'text-muted hover:text-text'
                 }`}
               >
-                {t === 'chat' ? 'Chat' : 'Skills'}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </nav>
+          <button
+            type="button"
+            onClick={() => setTab(tab === 'insights' ? 'chat' : 'insights')}
+            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 text-xs uppercase tracking-wider rounded-md border transition-colors ${
+              tab === 'insights'
+                ? 'bg-violet-500 border-violet-500 text-white hover:bg-violet-400'
+                : 'border-border bg-surface text-text hover:bg-surface-2'
+            }`}
+          >
+            {tab === 'insights' ? '← Back to Chat' : 'Insights'}
+          </button>
         </div>
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-4 md:py-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 h-[calc(100vh-9rem)]">
-          <section
-            className={`md:col-span-3 ${
-              tab === 'chat' ? 'flex' : 'hidden md:flex'
-            } flex-col min-h-0`}
-          >
-            <ChatPanel
-              ref={chatRef}
-              messages={messages}
-              loading={loading}
-              statusLine={statusLine}
-              onSend={runQuery}
-              onRetry={runQuery}
+        {tab === 'insights' ? (
+          <div className="h-[calc(100vh-9rem)]">
+            <InsightsPanel
+              stats={stats}
               feedback={feedback}
-              onFeedback={handleFeedback}
+              onSeed={handleSeed}
+              onClear={handleClearInsights}
             />
-          </section>
-          <aside
-            className={`md:col-span-2 ${
-              tab === 'skills' ? 'flex' : 'hidden md:flex'
-            } flex-col min-h-0`}
-          >
-            <SkillMarketplace
-              onExampleClick={handleExampleClick}
-              selectedRoleId={selectedRoleId}
-              onRoleChange={setSelectedRoleId}
-            />
-          </aside>
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 h-[calc(100vh-9rem)]">
+            <section
+              className={`md:col-span-3 ${
+                tab === 'chat' ? 'flex' : 'hidden md:flex'
+              } flex-col min-h-0`}
+            >
+              <ChatPanel
+                ref={chatRef}
+                messages={messages}
+                loading={loading}
+                statusLine={statusLine}
+                onSend={runQuery}
+                onRetry={runQuery}
+                feedback={feedback}
+                onFeedback={handleFeedback}
+              />
+            </section>
+            <aside
+              className={`md:col-span-2 ${
+                tab === 'skills' ? 'flex' : 'hidden md:flex'
+              } flex-col min-h-0`}
+            >
+              <SkillMarketplace
+                onExampleClick={handleExampleClick}
+                selectedRoleId={selectedRoleId}
+                onRoleChange={setSelectedRoleId}
+              />
+            </aside>
+          </div>
+        )}
       </main>
 
       <footer className="py-3 px-4 flex flex-col items-center gap-1.5">

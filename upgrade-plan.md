@@ -6,7 +6,8 @@
 - ✅ **§2 Agent prompts → markdown + `AGENTS.md`** — done (2026-05-13)
 - ✅ **§3 Sensei-style role recommendation** — done (2026-05-13)
 - ✅ **§4 Feedback + measurement layer** — done (2026-05-13)
-- ⬜ §5 Submission bundle (memo + diagram + Loom outline)
+- ✅ **§5 Insights tab (AI-built dashboard + QA + diagnose-with-Claude)** — done (2026-05-13)
+- ⬜ §6 Submission bundle (memo + diagram + Loom outline)
 
 ## Why
 
@@ -20,8 +21,9 @@ Mapping to gap analysis:
 | Skills are TS objects, not user-contributable markdown (mismatch with Ramp's 350+ git-backed Dojo skills)                   | §1 Skill format migration                            |
 | Three agents live as inline TS strings — not legible to non-engineers reading the repo                                      | §2 Agent prompts → markdown                          |
 | "Sensei" is reactive routing, not proactive surfacing (mismatch with JD: *"surfaces the right skills to the right people"*) | §3 Sensei-style role recommendations                 |
-| No measurement / feedback (mismatch with JD: *"measure impact via (AI-built!) dashboards"*)                                 | §4 Feedback + measurement layer                      |
-| Vercel link alone underdelivers vs. application ask of *"2–3 AI artifacts"*                                                 | §5 Submission bundle (memo + diagram + Loom outline) |
+| No measurement / feedback layer — JD says *"measure impact via (AI-built!) dashboards, QA checks, and iteratively improve"* | §4 collects the data; §5 visualizes + diagnoses      |
+| §4's data is collected but invisible — no dashboard, no QA flags, no "AI-built" analytical surface                          | §5 Insights tab (charts + QA + Diagnose-with-Claude) |
+| Vercel link alone underdelivers vs. application ask of *"2–3 AI artifacts"*                                                 | §6 Submission bundle (memo + diagram + Loom outline) |
 
 
 ## Starting line (what's already there)
@@ -317,11 +319,173 @@ Render in the footer (or as a header element on desktop). Compact format:
 
 ---
 
-## §5 — Submission bundle (memo + diagram + Loom outline)
+## §5 — Insights tab (AI-built dashboard + QA + diagnose-with-Claude) ✅ DONE
+
+**Outcome:** A full "Insights" tab ships alongside Chat / Skills. Empty state hosts a "Load demo data" CTA that seeds 20 synthetic feedback entries. Three recharts-powered visualisations (Routing Health + sparkline, Skill Leaderboard, Confidence Histogram), a deterministic QA-flag rail, and a Claude-powered "Diagnose with Claude" panel that returns a markdown report citing real skill IDs and proposing concrete prompt-level fixes. `npm run lint` and `npm run build` pass.
+
+**What shipped:**
+
+- `src/lib/insights.ts` — pure rollup functions (`perSkillStats`, `confidenceBuckets`, `routingHealth`, `detectQAFlags`) + `seedInsights()` / `clearInsights()` that build a 20-entry synthetic blob mapped to plausible prompts and timestamps spread across the prior ~22h. Recent sparkline values use real timestamps so the X axis renders against time, not sequence position.
+- `src/lib/stats.ts` — `ResponseStat` extended with `skillIds: string[]` (so per-skill rollups work without re-reading `messages`) and `timestamp: number` (for the sparkline). `loadStats()` now normalises pre-§5 entries so older `localStorage` blobs upgrade silently. New `clearStats()` helper for the Insights "Clear data" affordance.
+- `src/lib/feedback.ts` — `clearFeedback()` helper matching `clearStats()`.
+- `src/lib/agents.ts` — exports `DIAGNOSTICIAN_SYSTEM_PROMPT` loaded from `agents/diagnostician.md`.
+- `agents/diagnostician.md` — system prompt for the analyst agent. Asks for a strict markdown shape: top-3 issues with named-file fixes, plus a "What's working" line.
+- `src/app/api/diagnose/route.ts` — POST endpoint that accepts `{ stats, feedback }`, recomputes `perSkillStats` server-side, ships a JSON blob (with relative `ageHours` instead of raw epochs) to Claude, and returns `{ reply: markdown }`. Validates body shape; returns 400 on empty telemetry, 503 when the API key is missing.
+- `src/components/InsightsPanel.tsx` — composes everything, sticky `Insights` header with a Clear-data link, sections for Routing health → Leaderboard + Histogram (side-by-side on `lg`) → QA flags → Diagnose.
+- `src/components/insights/SkillLeaderboard.tsx` — horizontal stacked bar (👍 emerald, 👎 rose) per skill, sorted by total usage. Custom tooltip with icon + name + run count + approval%.
+- `src/components/insights/ConfidenceHistogram.tsx` — 5 vertical bars aligned to the orchestrator's calibration rubric (Unambiguous / High / Medium / Low / No match). Bar color tracks band quality.
+- `src/components/insights/RoutingHealth.tsx` — big-number score (avg conf × 👍 rate × (1 − fallback rate)) with traffic-light color, three sub-stat columns, and a time-axis sparkline of the last 10 routable confidences with relative-age tick labels + a clock-time tooltip.
+- `src/components/insights/QAFlags.tsx` — renders deterministic alerts. Empty state shows an emerald "All clear" card. Severity styling: amber for warning, rose for critical.
+- `src/components/insights/EmptyState.tsx` — single CTA, replaces the entire panel when no telemetry exists.
+- `src/components/insights/DiagnosePanel.tsx` — button + loading/error/success state machine. POSTs to `/api/diagnose`, renders the markdown reply via `react-markdown` inside a bordered card.
+- `src/app/page.tsx` — `'insights'` added to the `Tab` union; mobile gets the existing 3-tab pill switcher, desktop gets a single "Insights ↔ Back to Chat" toggle button (since the chat/skills tabs are a no-op on desktop where both panels show side-by-side anyway). When active, the main grid is replaced by a full-width `InsightsPanel`.
+- `next.config.mjs` — `'/api/diagnose'` added to `experimental.outputFileTracingIncludes` so the diagnostician markdown ships with the Vercel bundle.
+- `recharts` added as a dependency (~120kB, the chosen tradeoff from open Q6).
+
+**Deviations from the original plan:**
+
+- **Desktop nav isn't a 3-tab switcher.** On `md+` the chat/skills tabs do nothing (both panels render side-by-side regardless) so showing them as tappable was confusing. Resolved by hiding chat/skills on desktop and exposing Insights as a single toggle button that swaps the layout. Mobile keeps the full 3-tab strip.
+- **Sparkline X axis uses real timestamps**, not sequence position. The plan called the chart a "sparkline of last 10 confidences" without specifying axis semantics. Plotting against time means the curve's spacing reflects how close-together the recent queries actually were, which is the more honest read. Tick labels are relative (`22h ago` → `now`); hover tooltip carries the absolute clock time.
+- **Tooltip backgrounds use inline `var(--surface-2)` styling** instead of Tailwind `bg-bg/95`. The transparency-modifier form didn't render fully opaque against the chart container in the user's browser, and switching to inline styles is bulletproof.
+- **Two QA flags fire on the seed**, not just one. The vendor-risk-flagger ends up with 1👍/2👎 (low approval flag) and the invoice→policy chain ends up with 1👍/2👎 (chain low-approval flag). Designed so the panel demonstrates the QA layer without looking pathologically broken.
+- **No backward-compat shim for the `ResponseStat` change** beyond the load-time normaliser. Pre-§5 entries (missing `skillIds`, `timestamp`) load as if they had defaults; no migration step.
+
+### §5 original plan (kept for reference)
+
+**Decision recap:** A third top-level tab ("Insights") that turns §4's localStorage data into charts + automatic QA flags + a Claude-powered diagnose panel. Seeds 20 synthetic feedback entries on first visit so reviewers see something interesting immediately.
+
+**Why this maps to the JD bullet** (*"Measure impact of internal products via (AI-built!) dashboards, QA checks, and iteratively improve them based on user feedback."*):
+
+| JD phrase                                  | This tab                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| Measure impact                             | Per-skill usage, 👍/👎 rate, avg confidence, fallback rate        |
+| AI-built dashboards                        | Built by Claude *and* Claude is the analyst (Diagnose panel)      |
+| QA checks                                  | Deterministic red flags: low approval, high fallback, low conf    |
+| Iteratively improve based on user feedback | "Diagnose with Claude" → prioritized prompt-rewrite suggestions   |
+
+The double-meaning of "AI-built" is the punchline: Claude wrote the dashboard *as part of this app*, and Claude is the analyst *inside* it, reading its own output to propose self-improvements.
+
+### Tab navigation
+
+Today's tab switcher is mobile-only (`chat` / `skills`) with desktop showing both side-by-side. Insights adds a third option:
+
+- **Mobile**: third button (`chat` / `skills` / `insights`).
+- **Desktop**: switcher becomes always-visible; selecting Insights replaces the chat+marketplace grid with a full-width insights panel. Default selection stays `chat` so the demo's first-paint is unchanged.
+
+(Alternative layout — Insights as a fourth column — was rejected: marketplace+chat is already grid-cols-5 and a third column would crush the chat.)
+
+### Files affected
+
+- **New**: `src/components/InsightsPanel.tsx` — the tab body (header, charts, QA, Diagnose)
+- **New**: `src/components/insights/` — `SkillLeaderboard.tsx`, `ConfidenceHistogram.tsx`, `QAFlags.tsx`, `DiagnosePanel.tsx`, `EmptyState.tsx`
+- **New**: `src/lib/insights.ts` — pure rollup functions: `perSkillStats()`, `confidenceBuckets()`, `detectQAFlags()`, `seedInsights()`, `clearInsights()`
+- **New**: `agents/diagnostician.md` — system prompt for the diagnose agent
+- **New**: `src/app/api/diagnose/route.ts` — POST endpoint; receives the stats+feedback blob; returns a markdown report
+- **Modified**: `src/lib/stats.ts` — extend `ResponseStat` with `skillIds: string[]` (so per-skill rollups work without re-reading `messages`)
+- **Modified**: `src/app/page.tsx` — pass `skillIds` when recording responses; add `'insights'` to `Tab` union; render the panel
+- **New dep**: `recharts` (~120kb, tree-shakeable). Hand-rolled CSS bars are a viable fallback if bundle weight matters — flagged as an open question below.
+
+### Charts
+
+Three lightweight charts. All read from the existing `stats` + `feedback` localStorage blobs (no new persistence).
+
+1. **Skill leaderboard** — horizontal bar chart, one row per skill, two bars: 👍 count and 👎 count. Skills sorted by total usage. Color: emerald for up, rose for down. Click a row → filter the Recent feedback log to that skill (stretch).
+2. **Confidence histogram** — vertical bar chart, x-axis = the 5 calibration bands from `agents/orchestrator.md` (`0`, `0.3–0.5`, `0.6–0.8`, `0.85–0.95`, `1.0`), y-axis = count. Makes the calibration rubric visible *as a result* of itself.
+3. **Routing health gauge** — single composite score, big number with a small sparkline of the last 10 queries' confidence values. Score = `avg_confidence × thumbs_up_rate × (1 − fallback_rate)`. Anywhere from 0 to 1.
+
+### QA flags (deterministic, no LLM call)
+
+Rules fire only when sample size is non-trivial:
+
+- Skill 👍 rate < 50% after ≥3 ratings → *"{skill}: {n}/{m} 👍 — review system prompt"*
+- Chain 👎 rate > 50% after ≥2 runs → *"Chain {a}→{b} has {n}/{m} 👎 — check synthesizer merge"*
+- Avg confidence < 0.5 across last 10 queries → *"Coverage gap likely — query patterns may exceed current skill set"*
+- Fallback rate > 10% across last 20 queries → *"Examples or orchestrator prompt may need expansion"*
+
+QA section renders nothing when no rules fire (clean empty state on a healthy session).
+
+### Diagnose-with-Claude panel
+
+The agentic punchline. A button labeled "Diagnose with Claude" that:
+
+1. Bundles the current `stats` + `feedback` blobs as JSON.
+2. POSTs to `/api/diagnose`.
+3. Server-side: loads `agents/diagnostician.md` as system prompt, sends the blob as user message, requests markdown back.
+4. Renders the returned markdown inline below the button.
+
+`agents/diagnostician.md` system prompt (sketch):
+
+```
+You are an internal product analyst reviewing an AI skills marketplace's session data.
+Given JSON containing per-response stats (skills used, confidence, fallback bit) and
+thumb-feedback entries (rating + the prompt that triggered the response), produce a
+short markdown report:
+
+1. **Top 3 issues**, ranked by impact (frequency × user pain).
+2. For each issue, one concrete prompt-level fix the team could apply this week.
+3. End with one sentence on what's working well.
+
+Be specific — reference skill names, sample prompts, and counts. Skip generic advice.
+If data is sparse (fewer than 5 responses), say so honestly and recommend collecting more.
+```
+
+Model: `claude-sonnet-4-5`. Max tokens: ~800. Cost per click: ~$0.01 — gated behind the button, never auto-runs.
+
+### Seed data (20 synthetic feedback entries)
+
+A "Load demo data" button in the panel's empty state. Calls `seedInsights()` which writes 20 plausible entries to both `skill-router:stats` and `skill-router:feedback`. Mix:
+
+- 5 single-skill expense-categorizer runs, mostly 👍, conf 0.9–1.0
+- 4 vendor-risk-flagger runs — 1 👎 on an EU-vendor query (designed to trigger the QA "review prompt" flag), conf 0.7–0.9
+- 3 invoice-extractor → policy-compliance chains, mixed feedback, conf 0.85
+- 2 expense-categorizer → spend-anomaly chains, 👍, conf 0.95
+- 3 meeting-cost-calculator runs, 👍, conf 1.0
+- 2 low-confidence vague queries (conf 0.4) — one fallback (empty steps), one weak match → designed to fire the "coverage gap" flag
+- 1 three-skill invoice→categorize→policy chain, 👍, conf 0.8
+
+Each entry gets a realistic-looking prompt (echoes of the `exampleInputs` already in `skills/*.md`) and timestamps spread across the prior 24h so any time-windowed views look natural. Twin "Clear demo data" button reverses it.
+
+### Steps
+
+1. Extend `ResponseStat` (`src/lib/stats.ts`) with `skillIds: string[]`; update `page.tsx` to pass `executionPlan.steps.map(s => s.skillId)` when recording.
+2. Build `src/lib/insights.ts` — rollup pure functions + seed/clear generators. Unit-testable in isolation.
+3. Add `recharts` (or commit to hand-rolled — see open question).
+4. Build chart subcomponents in `src/components/insights/`.
+5. Build `InsightsPanel` composing them. Empty state renders "Load demo data" CTA.
+6. Add `'insights'` to `Tab` union in `page.tsx`; update tab switcher (now always visible on desktop); swap main grid when active.
+7. Add `agents/diagnostician.md` + `src/app/api/diagnose/route.ts`; wire DiagnosePanel button.
+8. Manual QA: empty → seed → verify all 3 charts render + at least one QA flag fires + Diagnose returns a sensible report → Clear → empty again.
+
+### Acceptance
+
+- Insights tab visible from chat/skills; mobile + desktop both work
+- Empty localStorage shows a single "Load demo data" CTA (no broken charts)
+- With seed data loaded: 3 charts render, ≥1 QA flag fires, Diagnose returns a markdown report citing specific skills
+- Diagnose button is gated (one click = one call); shows loading state during the API request
+- All existing chat/skills/footer-pill flows still work; no regressions
+- `npm run lint` and `npm run build` pass
+
+### Risks
+
+- **Recharts bundle size**: ~120kb gzipped. For a portfolio demo this is fine; if it shows up on the Lighthouse score we can swap to hand-rolled bars.
+- **Diagnose endpoint cost**: per-click LLM call. Mitigated by gating behind an explicit button + no auto-refresh.
+- **Layout shuffle**: switching to a full-width Insights view changes the page's grid. Verify mobile tab switcher and desktop both before merge.
+- **Seed data plausibility**: synthetic entries shouldn't look like obvious test fixtures. Prompts mirror real `exampleInputs` from the skill files to keep the demo coherent.
+
+### What this is NOT
+
+- Not a backend / database migration. Data stays in `localStorage`.
+- Not multi-user analytics. One-user-one-browser scoped, same as §4.
+- Not Claude-generated QA flags — those are deterministic rules. Only the Diagnose panel is LLM-backed.
+- Not a real product analytics tool. It's a demo of the *shape* such a tool would take if shipped at Ramp.
+
+---
+
+## §6 — Submission bundle (memo + diagram + Loom outline)
 
 **Decision recap:** All three artifacts.
 
-### 5a. `MEMO.md` — the written outline
+### 6a. `MEMO.md` — the written outline
 
 ~1.5–2 pages. Audience: hiring manager skimming during review. Sections:
 
@@ -333,7 +497,7 @@ Render in the footer (or as a header element on desktop). Compact format:
 6. **v2 roadmap** — memory, scheduled automations, Slack assistant, user-contributed skill submission. One sentence each.
 7. **Lessons** — mirror the tweet's "What We Learned" rhetorical move. Honest.
 
-### 5b. Flow diagram
+### 6b. Flow diagram
 
 `docs/pipeline.png` (or SVG). Shows:
 
@@ -345,7 +509,7 @@ Render in the footer (or as a header element on desktop). Compact format:
 
 Tool: probably draw.io or Excalidraw. Or hand-draw and photograph for a more human vibe. **Decide at execution time.**
 
-### 5c. Loom outline (`LOOM-OUTLINE.md`)
+### 6c. Loom outline (`LOOM-OUTLINE.md`)
 
 Not the recording itself — a 60–90s script you record after the build is done. Sections:
 
@@ -373,12 +537,13 @@ Not the recording itself — a 60–90s script you record after the build is don
 | 2     | §2 Agent prompts → markdown | 1–2h      | ✅ done 2026-05-13 | Mirrors §1 mechanically, easy follow-up                 |
 | 3     | §3 Sensei role strip        | 1–2h      | ✅ done 2026-05-13 | UI-only, doesn't depend on §1 or §2 but flows naturally |
 | 4     | §4 Feedback layer           | 1–2h      | ✅ done 2026-05-13 | UI-only, independent                                    |
-| 5     | §5a Memo                    | 2h        | ⬜                 | Last — best written when the full product is real       |
-| 6     | §5b Diagram                 | 1h        | ⬜                 | Last — captures final architecture                      |
-| 7     | §5c Loom outline            | 30m       | ⬜                 | Last — scripts the final flow                           |
+| 5     | §5 Insights tab             | 2–3h      | ✅ done 2026-05-13 | Depends on §4's data layer; precedes memo so it can be cited |
+| 6     | §6a Memo                    | 2h        | ⬜                 | Last — best written when the full product is real       |
+| 7     | §6b Diagram                 | 1h        | ⬜                 | Last — captures final architecture                      |
+| 8     | §6c Loom outline            | 30m       | ⬜                 | Last — scripts the final flow                           |
 
 
-**Total: ~10–12 focused hours.** Compressible to one long day or two evening sessions.
+**Total: ~12–15 focused hours.** Compressible to two long days or three evening sessions.
 
 **Sequencing note (post-§2):** §2 was implemented before §1, even though the plan recommended §1 first. The order swap was harmless because the two are independent (agents and skills are different files), but it means §1 now needs to mirror the loader pattern already established by §2 — see `src/lib/agents.ts` for the shape and pick `gray-matter` for the skill frontmatter parsing since skills have array-typed fields.
 
@@ -391,6 +556,8 @@ Not the recording itself — a 60–90s script you record after the build is don
 3. **Stats pill placement** — header or footer? Footer is cleaner but less prominent. **Default: footer, with a possible hover-expand.**
 4. **Diagram tool** — Excalidraw (hand-drawn vibe) vs. Mermaid (code-versioned) vs. Figma. Probably Excalidraw exported to PNG. Confirm at execution time.
 5. **Whether to demote the existing CLAUDE.md `claude-sonnet-4-5` note** to a less prominent spot once the migration's done. Currently lives under *Important Notes*. Leave it for now.
+6. **§5 chart library**: `recharts` (polished, ~120kb) vs. hand-rolled CSS bars (zero deps, ugly but honest). Default: `recharts` for the nicer demo; swap if bundle weight shows up in Lighthouse.
+7. **§5 desktop layout**: Insights replaces the chat+marketplace grid when active (default chosen above), vs. a side-drawer / modal overlay. Drawer feels gimmicky; full-swap is simpler. Confirm at implementation time.
 
 ---
 

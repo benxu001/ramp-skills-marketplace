@@ -9,8 +9,9 @@ Target audience: Ramp hiring team for the "AI Product Operator" role. This proje
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS
 - **AI**: Anthropic Claude API (`@anthropic-ai/sdk`) — model: `claude-sonnet-4-5`
+- **Charts**: `recharts` (Insights tab)
 - **Language**: TypeScript
-- **State**: React state (no database — skills are markdown files on disk, chat is in-memory)
+- **State**: React state (no database — skills are markdown files on disk, chat is in-memory). Feedback + per-response stats persist to `localStorage` under `skill-router:feedback` and `skill-router:stats`.
 
 ## Architecture
 
@@ -26,7 +27,8 @@ skills/                       # Skill registry — one markdown file per skill
 agents/                       # Agent prompts as markdown (loaded at server start)
 ├── orchestrator.md           # Body = system prompt for the planner
 ├── executor.md               # First fenced block = user-message template for chained steps
-└── synthesizer.md            # Body = system prompt for multi-skill merge
+├── synthesizer.md            # Body = system prompt for multi-skill merge
+└── diagnostician.md          # Body = system prompt for the Insights "Diagnose with Claude" agent
 
 AGENTS.md                     # Repo-root doc explaining the 3-agent pipeline
 
@@ -36,12 +38,12 @@ scripts/
 
 src/
 ├── app/
-│   ├── page.tsx              # Main chat + marketplace UI
+│   ├── page.tsx              # Main chat + marketplace UI + Insights tab swap
 │   ├── layout.tsx            # Root layout
 │   ├── globals.css           # Tailwind + custom styles
 │   └── api/
-│       └── chat/
-│           └── route.ts      # POST endpoint: orchestrates the 3-agent pipeline
+│       ├── chat/route.ts     # POST endpoint: orchestrates the 3-agent pipeline (NDJSON stream)
+│       └── diagnose/route.ts # POST endpoint: ships stats+feedback to the Diagnostician
 ├── lib/
 │   ├── skills.ts             # Server-only loader: reads skills/*.md via gray-matter
 │   ├── skill-metadata.ts     # AUTO-GENERATED client-safe metadata (no systemPrompt)
@@ -51,6 +53,8 @@ src/
 │   ├── synthesizer.ts        # Agent 3: Combines multi-skill outputs into one response
 │   ├── roleRecommendations.ts # Role → top-3 skill IDs map (Sensei surfacing layer)
 │   ├── feedback.ts           # 👍/👎 localStorage layer (key: skill-router:feedback)
+│   ├── stats.ts              # Per-response stats localStorage layer (key: skill-router:stats)
+│   ├── insights.ts           # Pure rollups + 20-entry synthetic seed for the Insights tab
 │   └── types.ts              # Shared TS types (Skill, SkillMeta, FeedbackEntry, ChatMessage…)
 ├── components/
 │   ├── ChatPanel.tsx         # Chat interface (left panel); threads feedback to MessageBubble
@@ -60,14 +64,23 @@ src/
 │   ├── MessageBubble.tsx     # Chat message component; renders 👍/👎 on real assistant messages
 │   ├── SessionStats.tsx      # Footer pill: queries · chains · avg confidence · fallbacks · 👍/👎
 │   ├── SkillBadge.tsx        # Shows which skill(s) were used for a response
-│   └── ExecutionPlan.tsx     # Visual display of the orchestrator's plan
+│   ├── ExecutionPlan.tsx     # Visual display of the orchestrator's plan
+│   ├── InsightsPanel.tsx     # Insights tab body: composes routing-health / charts / QA / Diagnose
+│   └── insights/
+│       ├── RoutingHealth.tsx        # Score (0-100) + 3 sub-stats + time-axis sparkline
+│       ├── SkillLeaderboard.tsx     # Horizontal stacked bars (👍 / 👎) per skill (recharts)
+│       ├── ConfidenceHistogram.tsx  # 5-band histogram aligned to the orchestrator's rubric
+│       ├── QAFlags.tsx              # Deterministic rules (low approval, chain down, etc.)
+│       ├── EmptyState.tsx           # "Load demo data" CTA when telemetry is empty
+│       └── DiagnosePanel.tsx        # Button + markdown render of the Diagnostician's reply
 ```
 
 **Adding a new skill:** drop a `skills/<id>.md` file. The codegen step regenerates `skill-metadata.ts` on next `npm run dev` / `build` / `lint` — no other code changes needed.
 
-**Editing agent behavior:** orchestrator/synthesizer prompts and the executor's
-chained-step template live in `agents/*.md`. Edit the markdown and restart the
-dev server — no code change needed. See `AGENTS.md` for the full map.
+**Editing agent behavior:** orchestrator / synthesizer / diagnostician prompts
+and the executor's chained-step template live in `agents/*.md`. Edit the
+markdown and restart the dev server — no code change needed. See `AGENTS.md`
+for the full map.
 
 ## 3-Agent Pipeline
 
@@ -130,7 +143,10 @@ Final Response (with execution plan metadata)
 - **Chaining via context injection**: each skill's output is prepended to the next skill's user message as "Prior analysis" context — no shared memory or state management needed
 - Skills are **markdown-defined** under `skills/` (extended frontmatter + system-prompt body), parsed by `gray-matter` — Dojo-style file-backed registry without a database
 - The UI shows the **full execution plan** visually — which skills ran, in what order, with confidence
-- **Feedback persists to `localStorage`**, not a backend — `skill-router:feedback` is the key. Session stats survive reload; switching browsers / clearing site data resets them. No PII leaves the device.
+- **Feedback + stats persist to `localStorage`**, not a backend — keys `skill-router:feedback` and `skill-router:stats`. Survive reload; switching browsers / clearing site data resets them. No PII leaves the device.
+- **Insights tab is "AI-built" twice over** — the dashboard itself is built by Claude as part of the app, *and* the "Diagnose with Claude" panel ships the localStorage telemetry to a 4th agent (`agents/diagnostician.md`) that returns a markdown report citing specific skill files to edit. Maps directly to the JD bullet on "AI-built dashboards, QA checks, and iteratively improve based on user feedback."
+- **QA flags are deterministic, not LLM-generated** — predictable, no per-render API call, no hallucinated alerts. Only the Diagnose panel is LLM-backed, and it's gated behind an explicit button click.
+- **Desktop nav exposes only an "Insights" toggle**; chat + skills are always side-by-side on `md+`. Mobile still gets the 3-tab pill switcher.
 - No auth needed — this is a demo app
 
 ## Environment Variables

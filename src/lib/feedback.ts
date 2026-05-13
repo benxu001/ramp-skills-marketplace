@@ -64,3 +64,8 @@ export function removeFeedback(
   persist(next);
   return next;
 }
+
+export function clearFeedback(): FeedbackMap {
+  persist({});
+  return {};
+}

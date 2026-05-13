@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       '/api/chat': ['./agents/**/*.md'],
+      '/api/diagnose': ['./agents/**/*.md'],
     },
   },
 };
