@@ -1,5 +1,7 @@
 # Skill Router — AI Skills Marketplace & Agentic Orchestrator
 
+**Live demo:** <https://ramp-skills-marketplace.vercel.app/>
+
 A multi-agent skills marketplace where users type natural-language finance requests and a 3-agent pipeline (planner → executor → synthesizer) routes the request to one or more specialized skills, streams each step's status to the UI, and merges chained outputs into a single coherent response.
 
 A separate **Insights** tab turns the session's usage into a feedback loop — per-skill 👍/👎 rollups, a routing-health score, deterministic QA flags, and a *"Diagnose with Claude"* button that hands the telemetry to a 4th analyst agent which returns prompt-level fixes citing specific skill files to edit.

@@ -7,7 +7,7 @@
 - ✅ **§3 Sensei-style role recommendation** — done (2026-05-13)
 - ✅ **§4 Feedback + measurement layer** — done (2026-05-13)
 - ✅ **§5 Insights tab (AI-built dashboard + QA + diagnose-with-Claude)** — done (2026-05-13)
-- ⬜ §6 Submission bundle (memo + diagram + Loom outline)
+- 🟡 **§6 Submission bundle** — artifacts written 2026-05-13 (`MEMO.md`, `docs/architecture.md`, `LOOM-OUTLINE.md`); live demo deployed to <https://ramp-skills-marketplace.vercel.app/>; user-recorded Loom still pending
 
 ## Why
 
@@ -481,11 +481,28 @@ Each entry gets a realistic-looking prompt (echoes of the `exampleInputs` alread
 
 ---
 
-## §6 — Submission bundle (memo + diagram + Loom outline)
+## §6 — Submission bundle (memo + diagram + Loom outline) 🟡 ARTIFACTS WRITTEN
+
+**Outcome:** All three written artifacts shipped (memo, Mermaid diagram, Loom script). Two follow-ups depend on user action: (a) Vercel deploy + URL paste-in (user authorized the GitHub → Vercel dashboard route on 2026-05-13; pending the user's import + paste-back), and (b) the Loom recording itself (90s script written; user records separately).
+
+**What shipped:**
+
+- **`MEMO.md`** at repo root — 7-section memo per the original outline, ~1.5pp. Leads with the formal role title *"AI Operations Specialist | Agentic Workflows"* (per `user-role` memory; the JD body uses *AI Product Operator* as the functional framing, but the posting header is the formal title). Adds **§5/Insights** to the "What I built" walkthrough — the original outline pre-dated §5 and only mentioned the 3-agent pipeline + Sensei strip. Live demo URL <https://ramp-skills-marketplace.vercel.app/> wired in once the user finished the Vercel dashboard import.
+- **`docs/architecture.md`** — Mermaid flowchart (chosen over Excalidraw/draw.io for code-versioning + GitHub-native rendering). Shows the 3-agent request pipeline, the markdown skill registry, the Insights/Diagnostician feedback loop, and the dotted arrow from "edit suggestions" back to the skill files that closes the loop. Companion text: how chaining works inside the executor, mapping to Ramp internals (Dojo/Sensei/Glass/AI-built dashboards), and the "what Dojo doesn't do today" framing of the bet.
+- **`LOOM-OUTLINE.md`** at repo root — 90s, 6 beats (Hook · 3-skill chain demo · Markdown registry · Sensei role chip · **Insights + Diagnose** · Close). The Insights beat is new vs. the original 5-beat outline. Includes pre-flight setup (3 browser tabs, primed clipboard, warm API call) and post-recording checklist (paste URL into MEMO, rename Loom title card).
+
+**Deviations from the original plan:**
+
+- **Diagram is Mermaid, not Excalidraw/PNG.** Resolves open question #4 in favor of code-versioning. A Mermaid block in `docs/architecture.md` renders inline on GitHub, regenerates trivially when the architecture shifts, and avoids committing a binary asset.
+- **Memo outline expanded to cover §5/Insights.** The original 7-section outline was written before §5 shipped — "What I built" mentioned only the 3-agent pipeline + Sensei strip. The shipped MEMO threads Insights and the Diagnostician through *every* section (Problem framing, What I built, Tangible impact, How I work, Lessons), because the AI-built feedback loop is the strongest single artifact in the submission and burying it in one bullet would underdeliver.
+- **Loom outline grew from 5 beats to 6** to fit the Insights demo (1:00–1:20). The Insights beat is the second-most-important moment in the recording after the 3-skill chain demo (Beat 2). The pre-flight note explicitly flags Insights as the beat to protect if the recording runs long.
+- **Vercel deploy path is GitHub → dashboard import**, not `vercel` CLI. User authorized this route on 2026-05-13 via the `AskUserQuestion` flow. Local `main` is already on `origin/main` (the previous session's commits are pushed). Once the user imports the repo on Vercel, sets `ANTHROPIC_API_KEY` in env vars, and pastes the URL back, I swap the placeholder in `MEMO.md`.
+
+### §6 original plan (kept for reference)
 
 **Decision recap:** All three artifacts.
 
-### 6a. `MEMO.md` — the written outline
+#### 6a. `MEMO.md` — the written outline
 
 ~1.5–2 pages. Audience: hiring manager skimming during review. Sections:
 
@@ -497,7 +514,7 @@ Each entry gets a realistic-looking prompt (echoes of the `exampleInputs` alread
 6. **v2 roadmap** — memory, scheduled automations, Slack assistant, user-contributed skill submission. One sentence each.
 7. **Lessons** — mirror the tweet's "What We Learned" rhetorical move. Honest.
 
-### 6b. Flow diagram
+#### 6b. Flow diagram
 
 `docs/pipeline.png` (or SVG). Shows:
 
@@ -509,7 +526,7 @@ Each entry gets a realistic-looking prompt (echoes of the `exampleInputs` alread
 
 Tool: probably draw.io or Excalidraw. Or hand-draw and photograph for a more human vibe. **Decide at execution time.**
 
-### 6c. Loom outline (`LOOM-OUTLINE.md`)
+#### 6c. Loom outline (`LOOM-OUTLINE.md`)
 
 Not the recording itself — a 60–90s script you record after the build is done. Sections:
 
@@ -538,9 +555,9 @@ Not the recording itself — a 60–90s script you record after the build is don
 | 3     | §3 Sensei role strip        | 1–2h      | ✅ done 2026-05-13 | UI-only, doesn't depend on §1 or §2 but flows naturally |
 | 4     | §4 Feedback layer           | 1–2h      | ✅ done 2026-05-13 | UI-only, independent                                    |
 | 5     | §5 Insights tab             | 2–3h      | ✅ done 2026-05-13 | Depends on §4's data layer; precedes memo so it can be cited |
-| 6     | §6a Memo                    | 2h        | ⬜                 | Last — best written when the full product is real       |
-| 7     | §6b Diagram                 | 1h        | ⬜                 | Last — captures final architecture                      |
-| 8     | §6c Loom outline            | 30m       | ⬜                 | Last — scripts the final flow                           |
+| 6     | §6a Memo                    | 2h        | ✅ done 2026-05-13 | Last — best written when the full product is real       |
+| 7     | §6b Diagram                 | 1h        | ✅ done 2026-05-13 | Last — captures final architecture                      |
+| 8     | §6c Loom outline            | 30m       | ✅ done 2026-05-13 (recording user's task) | Last — scripts the final flow                           |
 
 
 **Total: ~12–15 focused hours.** Compressible to two long days or three evening sessions.
