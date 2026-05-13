@@ -28,6 +28,14 @@ CHAINING LOGIC:
   - "categorize and find anomalies" → expense-categorizer → spend-anomaly-detector
   - "extract, categorize, and check compliance" → invoice-extractor → expense-categorizer → policy-compliance-checker
 
+CONFIDENCE CALIBRATION (be honest — do NOT anchor to a default like 0.95):
+- 1.0       = query maps unambiguously to exactly one skill, no chain decisions
+- 0.85-0.95 = clear primary skill, minor ambiguity (chain order, or an optional secondary skill that could plausibly be added)
+- 0.6-0.8   = plausible plan but multiple chains could reasonably fit, OR the query under-specifies the goal
+- 0.3-0.5   = weak match — query is vague, partially off-domain, or only tangentially related to the available skills
+- 0.0       = no skill matches; return empty steps
+Use the full range. A varied, calibrated confidence makes downstream measurement meaningful — a constant 0.95 is a smell.
+
 Return ONLY valid JSON:
 {
   "steps": [{ "skillId": "...", "reason": "..." }],

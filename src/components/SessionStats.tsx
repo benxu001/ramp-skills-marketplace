@@ -1,29 +1,26 @@
 'use client';
 
-import type { ChatMessage } from '@/lib/types';
 import type { FeedbackMap } from '@/lib/feedback';
+import type { StatsBlob } from '@/lib/stats';
 
 type Props = {
-  messages: ChatMessage[];
+  stats: StatsBlob;
   feedback: FeedbackMap;
 };
 
-export default function SessionStats({ messages, feedback }: Props) {
-  const queries = messages.filter((m) => m.role === 'user').length;
-  if (queries === 0) return null;
+export default function SessionStats({ stats, feedback }: Props) {
+  const queries = Object.keys(stats.queries).length;
+  const responses = Object.values(stats.responses);
+  const ratings = Object.values(feedback);
 
-  const planned = messages.filter(
-    (m) => m.role === 'assistant' && m.executionPlan,
-  );
-  const chains = planned.filter(
-    (m) => (m.executionPlan?.steps.length ?? 0) > 1,
-  ).length;
-  const fallbacks = messages.filter(
-    (m) => m.role === 'assistant' && m.error,
-  ).length;
+  if (queries + responses.length + ratings.length === 0) return null;
 
-  const confidences = planned
-    .map((m) => m.executionPlan?.confidence)
+  const chains = responses.filter((r) => !r.error && r.stepCount > 1).length;
+  const fallbacks = responses.filter((r) => r.error).length;
+
+  const confidences = responses
+    .filter((r) => !r.error)
+    .map((r) => r.confidence)
     .filter((c): c is number => typeof c === 'number');
   const avgConfidence =
     confidences.length === 0
@@ -32,7 +29,6 @@ export default function SessionStats({ messages, feedback }: Props) {
           (confidences.reduce((a, b) => a + b, 0) / confidences.length) * 100,
         );
 
-  const ratings = Object.values(feedback);
   const ups = ratings.filter((r) => r.rating === 'up').length;
   const downs = ratings.filter((r) => r.rating === 'down').length;
   const showThumbs = ups + downs > 0;

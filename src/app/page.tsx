@@ -11,6 +11,12 @@ import {
   recordFeedback,
   removeFeedback,
 } from '@/lib/feedback';
+import {
+  type StatsBlob,
+  loadStats,
+  recordQuery,
+  recordResponse,
+} from '@/lib/stats';
 
 const WELCOME: ChatMessage = {
   id: 'welcome',
@@ -35,10 +41,15 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>('chat');
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackMap>({});
+  const [stats, setStats] = useState<StatsBlob>({
+    queries: {},
+    responses: {},
+  });
   const chatRef = useRef<ChatPanelHandle>(null);
 
   useEffect(() => {
     setFeedback(loadFeedback());
+    setStats(loadStats());
   }, []);
 
   const handleFeedback = (messageId: string, rating: 'up' | 'down') => {
@@ -79,14 +90,16 @@ export default function Home() {
       timestamp: new Date(),
     };
     setMessages((m) => [...m, userMessage]);
+    setStats((prev) => recordQuery(prev, userMessage.id));
     setLoading(true);
     setStatusLine('Planning…');
 
     const finishWithError = (msg: string) => {
+      const errId = newId();
       setMessages((m) => [
         ...m,
         {
-          id: newId(),
+          id: errId,
           role: 'assistant',
           content: msg,
           error: true,
@@ -94,6 +107,13 @@ export default function Home() {
           timestamp: new Date(),
         },
       ]);
+      setStats((prev) =>
+        recordResponse(prev, errId, {
+          stepCount: 0,
+          confidence: null,
+          error: true,
+        }),
+      );
     };
 
     try {
@@ -170,18 +190,27 @@ export default function Home() {
       case 'synth_start':
         setStatusLine('Synthesizing results…');
         return;
-      case 'final':
+      case 'final': {
+        const assistantId = newId();
         setMessages((m) => [
           ...m,
           {
-            id: newId(),
+            id: assistantId,
             role: 'assistant',
             content: event.reply,
             executionPlan: event.executionPlan ?? undefined,
             timestamp: new Date(),
           },
         ]);
+        setStats((prev) =>
+          recordResponse(prev, assistantId, {
+            stepCount: event.executionPlan?.steps.length ?? 0,
+            confidence: event.executionPlan?.confidence ?? null,
+            error: false,
+          }),
+        );
         return;
+      }
       case 'error':
         // handled by runQuery via finishWithError
         return;
@@ -261,7 +290,7 @@ export default function Home() {
       </main>
 
       <footer className="py-3 px-4 flex flex-col items-center gap-1.5">
-        <SessionStats messages={messages} feedback={feedback} />
+        <SessionStats stats={stats} feedback={feedback} />
         <span className="text-[10px] text-muted text-center">
           Built for Ramp · AI Product Operator Application
         </span>
