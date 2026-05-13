@@ -35,13 +35,13 @@ export default function SkillCard({
           {skill.icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-semibold text-text truncate">{skill.name}</h3>
-            <span className="text-[10px] uppercase tracking-wider text-muted shrink-0">
-              {skill.category}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted leading-relaxed">
+          <h3 className="font-semibold text-text leading-tight break-words">
+            {skill.name}
+          </h3>
+          <span className="block mt-0.5 text-[10px] uppercase tracking-wider text-muted">
+            {skill.category}
+          </span>
+          <p className="mt-1.5 text-sm text-muted leading-relaxed">
             {skill.description}
           </p>
         </div>

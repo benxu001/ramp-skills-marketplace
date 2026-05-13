@@ -1,16 +1,22 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ChatPanel, { ChatPanelHandle } from '@/components/ChatPanel';
 import SkillMarketplace from '@/components/SkillMarketplace';
+import SessionStats from '@/components/SessionStats';
 import type { ChatMessage, ChatStreamEvent } from '@/lib/types';
+import {
+  type FeedbackMap,
+  loadFeedback,
+  recordFeedback,
+  removeFeedback,
+} from '@/lib/feedback';
 
 const WELCOME: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
     "Welcome to **Skill Router**. I can help with expense categorization, vendor risk assessment, invoice extraction, policy compliance, spend anomaly detection, and meeting cost calculation. Try typing a request — or click an example from the marketplace on the right.",
-  timestamp: new Date(),
 };
 
 type Tab = 'chat' | 'skills';
@@ -28,7 +34,42 @@ export default function Home() {
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('chat');
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackMap>({});
   const chatRef = useRef<ChatPanelHandle>(null);
+
+  useEffect(() => {
+    setFeedback(loadFeedback());
+  }, []);
+
+  const handleFeedback = (messageId: string, rating: 'up' | 'down') => {
+    const idx = messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+    const message = messages[idx];
+    if (message.role !== 'assistant' || !message.executionPlan) return;
+
+    let priorPrompt = '';
+    for (let i = idx - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        priorPrompt = messages[i].content;
+        break;
+      }
+    }
+    const skillIds = message.executionPlan.steps.map((s) => s.skillId);
+
+    setFeedback((prev) => {
+      const existing = prev[messageId];
+      if (existing && existing.rating === rating) {
+        return removeFeedback(prev, messageId);
+      }
+      return recordFeedback(prev, {
+        messageId,
+        skillIds,
+        rating,
+        timestamp: Date.now(),
+        prompt: priorPrompt,
+      });
+    });
+  };
 
   const runQuery = async (text: string) => {
     const userMessage: ChatMessage = {
@@ -201,6 +242,8 @@ export default function Home() {
               statusLine={statusLine}
               onSend={runQuery}
               onRetry={runQuery}
+              feedback={feedback}
+              onFeedback={handleFeedback}
             />
           </section>
           <aside
@@ -217,8 +260,11 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="py-3 text-center text-[10px] text-muted">
-        Built for Ramp · AI Product Operator Application
+      <footer className="py-3 px-4 flex flex-col items-center gap-1.5">
+        <SessionStats messages={messages} feedback={feedback} />
+        <span className="text-[10px] text-muted text-center">
+          Built for Ramp · AI Product Operator Application
+        </span>
       </footer>
     </div>
   );

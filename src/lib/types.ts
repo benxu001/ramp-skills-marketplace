@@ -61,6 +61,16 @@ export type ChatStreamEvent =
     }
   | { type: 'error'; code: 'no_api_key' | 'internal'; message: string };
 
+// User-supplied rating on a single assistant message. Persisted to
+// localStorage so the session stats survive a reload.
+export interface FeedbackEntry {
+  messageId: string;
+  skillIds: string[];
+  rating: 'up' | 'down';
+  timestamp: number;
+  prompt: string;
+}
+
 // Chat message
 export interface ChatMessage {
   id: string;
@@ -74,5 +84,7 @@ export interface ChatMessage {
   error?: boolean;
   /** Original user prompt that produced this error — used by the retry button. */
   retryPrompt?: string;
-  timestamp: Date;
+  /** Omitted for the hardcoded welcome bubble (no meaningful "sent at" time, and
+   *  would otherwise cause an SSR/CSR hydration mismatch from `new Date()`). */
+  timestamp?: Date;
 }

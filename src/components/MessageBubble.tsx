@@ -14,11 +14,20 @@ function formatTime(d: Date): string {
 type Props = {
   message: ChatMessage;
   onRetry?: (prompt: string) => void;
+  rating?: 'up' | 'down' | null;
+  onFeedback?: (messageId: string, rating: 'up' | 'down') => void;
 };
 
-export default function MessageBubble({ message, onRetry }: Props) {
+export default function MessageBubble({
+  message,
+  onRetry,
+  rating,
+  onFeedback,
+}: Props) {
   const isUser = message.role === 'user';
   const isError = !!message.error;
+  const showFeedback =
+    !isUser && !isError && !!message.executionPlan && !!onFeedback;
 
   return (
     <div
@@ -58,9 +67,47 @@ export default function MessageBubble({ message, onRetry }: Props) {
           </button>
         )}
       </div>
-      <span className="text-[10px] uppercase tracking-wider text-muted px-1">
-        {formatTime(message.timestamp)}
-      </span>
+      <div className="flex items-center gap-2 px-1">
+        {message.timestamp && (
+          <span className="text-[10px] uppercase tracking-wider text-muted">
+            {formatTime(message.timestamp)}
+          </span>
+        )}
+        {showFeedback && (
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => onFeedback!(message.id, 'up')}
+              aria-pressed={rating === 'up'}
+              aria-label="Mark response as helpful"
+              title="Helpful"
+              className={[
+                'rounded-md px-1.5 py-0.5 text-xs leading-none transition-colors',
+                rating === 'up'
+                  ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40'
+                  : 'text-muted hover:text-text hover:bg-surface-2',
+              ].join(' ')}
+            >
+              <span aria-hidden>👍</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onFeedback!(message.id, 'down')}
+              aria-pressed={rating === 'down'}
+              aria-label="Mark response as unhelpful"
+              title="Not helpful"
+              className={[
+                'rounded-md px-1.5 py-0.5 text-xs leading-none transition-colors',
+                rating === 'down'
+                  ? 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/40'
+                  : 'text-muted hover:text-text hover:bg-surface-2',
+              ].join(' ')}
+            >
+              <span aria-hidden>👎</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

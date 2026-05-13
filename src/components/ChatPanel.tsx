@@ -9,6 +9,7 @@ import {
   forwardRef,
 } from 'react';
 import type { ChatMessage } from '@/lib/types';
+import type { FeedbackMap } from '@/lib/feedback';
 import MessageBubble from './MessageBubble';
 import ExecutionPlan from './ExecutionPlan';
 
@@ -46,10 +47,12 @@ type Props = {
   statusLine: string | null;
   onSend: (text: string) => void;
   onRetry: (prompt: string) => void;
+  feedback?: FeedbackMap;
+  onFeedback?: (messageId: string, rating: 'up' | 'down') => void;
 };
 
 const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
-  { messages, loading, statusLine, onSend, onRetry },
+  { messages, loading, statusLine, onSend, onRetry, feedback, onFeedback },
   ref,
 ) {
   const [input, setInput] = useState('');
@@ -106,7 +109,12 @@ const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             {m.role === 'assistant' && m.executionPlan && (
               <ExecutionPlan plan={m.executionPlan} />
             )}
-            <MessageBubble message={m} onRetry={onRetry} />
+            <MessageBubble
+              message={m}
+              onRetry={onRetry}
+              rating={feedback?.[m.id]?.rating ?? null}
+              onFeedback={onFeedback}
+            />
           </div>
         ))}
         {loading && (
