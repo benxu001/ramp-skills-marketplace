@@ -27,6 +27,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('chat');
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const chatRef = useRef<ChatPanelHandle>(null);
 
   const runQuery = async (text: string) => {
@@ -207,7 +208,11 @@ export default function Home() {
               tab === 'skills' ? 'flex' : 'hidden md:flex'
             } flex-col min-h-0`}
           >
-            <SkillMarketplace onExampleClick={handleExampleClick} />
+            <SkillMarketplace
+              onExampleClick={handleExampleClick}
+              selectedRoleId={selectedRoleId}
+              onRoleChange={setSelectedRoleId}
+            />
           </aside>
         </div>
       </main>

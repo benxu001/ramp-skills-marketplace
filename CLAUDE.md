@@ -49,11 +49,13 @@ src/
 │   ├── orchestrator.ts       # Agent 1: Plans execution — single skill or chain
 │   ├── executor.ts           # Agent 2: Runs skills in sequence, passing outputs forward
 │   ├── synthesizer.ts        # Agent 3: Combines multi-skill outputs into one response
+│   ├── roleRecommendations.ts # Role → top-3 skill IDs map (Sensei surfacing layer)
 │   └── types.ts              # Shared TypeScript types (Skill + SkillMeta)
 ├── components/
 │   ├── ChatPanel.tsx         # Chat interface (left panel)
-│   ├── SkillCard.tsx         # Individual skill display card
-│   ├── SkillMarketplace.tsx  # Grid of available skills (right panel)
+│   ├── SkillCard.tsx         # Individual skill display card (supports Recommended badge)
+│   ├── SkillMarketplace.tsx  # Grid of available skills (right panel); owns role-based reorder
+│   ├── RoleStrip.tsx         # Sensei chip strip above marketplace (5 roles + clear)
 │   ├── MessageBubble.tsx     # Chat message component
 │   ├── SkillBadge.tsx        # Shows which skill(s) were used for a response
 │   └── ExecutionPlan.tsx     # Visual display of the orchestrator's plan

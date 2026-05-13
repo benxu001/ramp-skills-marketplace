@@ -4,7 +4,7 @@
 
 - ✅ **§1 Skill format migration** — done (2026-05-13)
 - ✅ **§2 Agent prompts → markdown + `AGENTS.md`** — done (2026-05-13)
-- ⬜ §3 Sensei-style role recommendation
+- ✅ **§3 Sensei-style role recommendation** — done (2026-05-13)
 - ⬜ §4 Feedback + measurement layer
 - ⬜ §5 Submission bundle (memo + diagram + Loom outline)
 
@@ -158,7 +158,24 @@ You are the Orchestrator. Given a user query and a list of available skills, dec
 
 ---
 
-## §3 — Sensei-style proactive role recommendation
+## §3 — Sensei-style proactive role recommendation ✅ DONE
+
+**Outcome:** Role chip strip ships above the marketplace grid. Clicking a chip
+reorders cards so the role's top-3 surface first, each tagged with a *Recommended
+for {role}* badge. `npm run lint` and `npm run build` pass.
+
+**What shipped:**
+- `src/lib/roleRecommendations.ts` — `ROLE_RECOMMENDATIONS` array (5 roles: AP Specialist, Procurement, Controller, FP&A, Founder / GM) + `getRoleById()` helper. Each role has an ordered `skillIds` list; first id is the most prominent.
+- `src/components/RoleStrip.tsx` — controlled chip strip; clicking the active chip toggles it off, and an explicit *Clear* button appears once a role is selected.
+- `src/components/SkillCard.tsx` — accepts optional `recommendedFor?: string`. When set, the card gets a violet ring + a *Recommended for {role}* pill above the icon row.
+- `src/components/SkillMarketplace.tsx` — accepts `selectedRoleId` + `onRoleChange`. Reorders the skill list by the role's `skillIds` rank (others slot in behind via `Number.POSITIVE_INFINITY`), and forwards `recommendedFor` per card.
+- `src/app/page.tsx` — owns `selectedRoleId` state, threads it to the marketplace.
+
+**Deviations from the original plan:**
+- The strip lives *inside* the marketplace component, not in `page.tsx`. Page only owns the role state; layout/order logic stays colocated with the cards. Keeps mobile (single skills tab) working without extra plumbing.
+- No separate "highlightedSkillIds" prop — the marketplace derives ordering + badge state from `selectedRoleId` directly via `getRoleById()`. Saves one prop and the duplicate source-of-truth.
+
+### §3 original plan (kept for reference)
 
 **Decision recap:** Hardcoded role → top-3 skills mapping, surfaced as a strip above the marketplace.
 
@@ -303,8 +320,8 @@ Not the recording itself — a 60–90s script you record after the build is don
 |---|---|---|---|---|
 | 1 | §1 Skill format migration | 2–3h | ✅ done 2026-05-13 | Foundational; everything else builds on top |
 | 2 | §2 Agent prompts → markdown | 1–2h | ✅ done 2026-05-13 | Mirrors §1 mechanically, easy follow-up |
-| 3 | §3 Sensei role strip | 1–2h | ⬜ next | UI-only, doesn't depend on §1 or §2 but flows naturally |
-| 4 | §4 Feedback layer | 1–2h | ⬜ | UI-only, independent |
+| 3 | §3 Sensei role strip | 1–2h | ✅ done 2026-05-13 | UI-only, doesn't depend on §1 or §2 but flows naturally |
+| 4 | §4 Feedback layer | 1–2h | ⬜ next | UI-only, independent |
 | 5 | §5a Memo | 2h | ⬜ | Last — best written when the full product is real |
 | 6 | §5b Diagram | 1h | ⬜ | Last — captures final architecture |
 | 7 | §5c Loom outline | 30m | ⬜ | Last — scripts the final flow |

@@ -6,15 +6,30 @@ import { cardAccentClasses, exampleChipClasses } from '@/lib/colors';
 type Props = {
   skill: SkillMeta;
   onExampleClick: (example: string) => void;
+  recommendedFor?: string;
 };
 
-export default function SkillCard({ skill, onExampleClick }: Props) {
+export default function SkillCard({
+  skill,
+  onExampleClick,
+  recommendedFor,
+}: Props) {
   return (
     <div
-      className={`group rounded-xl border border-border bg-surface p-4 transition-colors ${cardAccentClasses(
+      className={`group rounded-xl border bg-surface p-4 transition-colors ${cardAccentClasses(
         skill.color,
-      )}`}
+      )} ${
+        recommendedFor
+          ? 'border-violet-500/40 ring-1 ring-violet-500/20'
+          : 'border-border'
+      }`}
     >
+      {recommendedFor && (
+        <div className="mb-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded-full px-2 py-0.5 border border-violet-500/40 bg-violet-500/10 text-violet-300">
+          <span aria-hidden>★</span>
+          <span>Recommended for {recommendedFor}</span>
+        </div>
+      )}
       <div className="flex items-start gap-3">
         <div className="text-2xl leading-none mt-0.5" aria-hidden>
           {skill.icon}
