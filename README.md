@@ -2,6 +2,8 @@
 
 A multi-agent skills marketplace where users type natural-language finance requests and a 3-agent pipeline (planner → executor → synthesizer) routes the request to one or more specialized skills, streams each step's status to the UI, and merges chained outputs into a single coherent response.
 
+A separate **Insights** tab turns the session's usage into a feedback loop — per-skill 👍/👎 rollups, a routing-health score, deterministic QA flags, and a *"Diagnose with Claude"* button that hands the telemetry to a 4th analyst agent which returns prompt-level fixes citing specific skill files to edit.
+
 Built as a portfolio piece for the Ramp **AI Product Operator** role.
 
 ---
@@ -92,6 +94,32 @@ Each skill exposes `chainableAfter` hints so the orchestrator knows which compos
   → Vendor Risk Flagger → Meeting Cost Calculator
 
 The chat UI shows the chosen chain as a row of badges with arrows above the response — same visual primitive as Sensei's routing decision.
+
+---
+
+## The Insights tab
+
+A separate tab that turns the session's usage into an AI-built feedback loop — the JD bullet on *"AI-built dashboards, QA checks, and iterate on user feedback"* rendered as a working surface.
+
+| Card | What it shows |
+|---|---|
+| **Routing Health** | Composite score (0–100) — `avg confidence × thumbs-up rate × (1 − fallback rate)` — with traffic-light color, three sub-stats, and a time-axis sparkline of the last 10 routable queries. |
+| **Skill Leaderboard** | Horizontal stacked bars per skill (👍 emerald · 👎 rose), sorted by run count. `recharts` `BarChart` with `layout="vertical"`. |
+| **Confidence Histogram** | 5 bands aligned to the orchestrator's calibration rubric — Unambiguous (≥ 0.96) · High (0.81–0.95) · Medium (0.56–0.80) · Low (0.31–0.55) · No match. |
+| **QA Flags** | Deterministic alerts over the data: low-approval skill (≥ 3 ratings, < 50% 👍), multi-skill chain with majority 👎, recent 10-query confidence average below 0.5, fallback rate above 10% over the last 20. |
+| **Diagnose with Claude** | Ships the telemetry blob to a 4th analyst agent (`agents/diagnostician.md`). Returns a prioritized markdown report — top 1–3 issues with diagnosis + fix (citing specific skill files), plus one positive signal. Capped at 250 words. |
+
+The first four cards are pure computation over `localStorage` — no API call, no flicker, no hallucinated alerts. **Diagnose** is the only LLM-backed piece, gated behind an explicit click so the dashboard stays fast and predictable.
+
+Click **Load demo data** in the empty state to seed 20 synthetic entries (spanning ~22h of usage) and exercise every card immediately. The seed deliberately includes a low-approval skill and a chain with majority thumbs-down so two QA flags fire on first load.
+
+### Telemetry & feedback
+
+- Each assistant response writes a `ResponseStat` (skill IDs, confidence, error, timestamp) to `localStorage` under `skill-router:stats`.
+- 👍 / 👎 on assistant messages writes a `FeedbackEntry` to `skill-router:feedback` (rating + skill IDs + prompt + timestamp).
+- A footer pill (`SessionStats`) surfaces `queries · chains · avg confidence · fallbacks · 👍 / 👎` live during the session.
+- Nothing leaves the device except when you click **Diagnose with Claude**, which posts the JSON blob to `/api/diagnose` for the Diagnostician agent.
+- **Clear data** in the Insights header empties both keys; switching browsers or clearing site data resets the same way.
 
 ---
 

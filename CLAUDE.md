@@ -169,7 +169,7 @@ npm run lint    # Lint
 - Minimal animations, focus on clarity and speed
 
 ## Important Notes
-- Always use `claude-sonnet-4-5` as the model string (the previously-canon `claude-sonnet-4-20250514` is 404 on the API as of 2026-05)
+- Always use `claude-sonnet-4-5` as the model string
 - Use the Anthropic Node SDK (`@anthropic-ai/sdk`), NOT raw fetch
 - Tool use is NOT needed for this project — we're using prompt templates, not tool calling
 - Keep API calls server-side only (Next.js API routes)
