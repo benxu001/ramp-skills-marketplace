@@ -10,11 +10,23 @@ Target audience: Ramp hiring team for the "AI Product Operator" role. This proje
 - **Styling**: Tailwind CSS
 - **AI**: Anthropic Claude API (`@anthropic-ai/sdk`) — model: `claude-sonnet-4-5`
 - **Language**: TypeScript
-- **State**: React state (no database — skills are defined in code, chat is in-memory)
+- **State**: React state (no database — skills are markdown files on disk, chat is in-memory)
 
 ## Architecture
 
 ```
+skills/                       # Skill registry — one markdown file per skill
+├── expense-categorizer.md    # Frontmatter (metadata) + body (system prompt)
+├── vendor-risk-flagger.md
+├── invoice-extractor.md
+├── policy-compliance-checker.md
+├── spend-anomaly-detector.md
+└── meeting-cost-calculator.md
+
+scripts/
+└── build-skill-metadata.mjs  # Codegen: skills/*.md → src/lib/skill-metadata.ts
+                              # Runs automatically via predev / prebuild / prelint
+
 src/
 ├── app/
 │   ├── page.tsx              # Main chat + marketplace UI
@@ -24,11 +36,12 @@ src/
 │       └── chat/
 │           └── route.ts      # POST endpoint: orchestrates the 3-agent pipeline
 ├── lib/
-│   ├── skills.ts             # Skill definitions (registry of all skills)
+│   ├── skills.ts             # Server-only loader: reads skills/*.md via gray-matter
+│   ├── skill-metadata.ts     # AUTO-GENERATED client-safe metadata (no systemPrompt)
 │   ├── orchestrator.ts       # Agent 1: Plans execution — single skill or chain
 │   ├── executor.ts           # Agent 2: Runs skills in sequence, passing outputs forward
 │   ├── synthesizer.ts        # Agent 3: Combines multi-skill outputs into one response
-│   └── types.ts              # Shared TypeScript types
+│   └── types.ts              # Shared TypeScript types (Skill + SkillMeta)
 ├── components/
 │   ├── ChatPanel.tsx         # Chat interface (left panel)
 │   ├── SkillCard.tsx         # Individual skill display card
@@ -37,6 +50,8 @@ src/
 │   ├── SkillBadge.tsx        # Shows which skill(s) were used for a response
 │   └── ExecutionPlan.tsx     # Visual display of the orchestrator's plan
 ```
+
+To add a new skill: drop a `skills/<id>.md` file. The codegen step regenerates `skill-metadata.ts` on next `npm run dev` / `build` / `lint` — no other code changes needed.
 
 ## 3-Agent Pipeline
 
@@ -97,7 +112,7 @@ Final Response (with execution plan metadata)
 - **3 agents, not 1**: Orchestrator plans, executor runs, synthesizer merges — clean separation
 - **Synthesizer is conditional**: only fires for multi-skill chains (saves latency on simple queries)
 - **Chaining via context injection**: each skill's output is prepended to the next skill's user message as "Prior analysis" context — no shared memory or state management needed
-- Skills are **code-defined** (not database-backed) — keeps it simple for a portfolio piece
+- Skills are **markdown-defined** under `skills/` (extended frontmatter + system-prompt body), parsed by `gray-matter` — Dojo-style file-backed registry without a database
 - The UI shows the **full execution plan** visually — which skills ran, in what order, with confidence
 - No auth needed — this is a demo app
 
@@ -125,6 +140,7 @@ npm run lint    # Lint
 - Use the Anthropic Node SDK (`@anthropic-ai/sdk`), NOT raw fetch
 - Tool use is NOT needed for this project — we're using prompt templates, not tool calling
 - Keep API calls server-side only (Next.js API routes)
+- `src/lib/skills.ts` is marked `'server-only'` — never import it from a client component. Client components use `src/lib/skill-metadata.ts` (auto-generated, no systemPrompt)
 - The orchestrator prompt should return JSON with: `{ steps: [{ skillId, reason }], confidence, reasoning }`
 - The executor runs each step sequentially, injecting prior output as context
 - The synthesizer only runs when steps.length > 1

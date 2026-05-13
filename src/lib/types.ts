@@ -1,4 +1,5 @@
-// A skill in the marketplace
+// A skill in the marketplace.
+// Full shape including the system prompt — only safe to import server-side.
 export interface Skill {
   id: string;
   name: string;
@@ -11,6 +12,10 @@ export interface Skill {
   outputFormat: string;
   chainableAfter?: string[];
 }
+
+// Client-safe view of a skill. Excludes systemPrompt so it can be bundled
+// into the browser without leaking prompt internals or pulling in `fs`.
+export type SkillMeta = Omit<Skill, 'systemPrompt'>;
 
 // A single step in an execution plan
 export interface ExecutionStep {

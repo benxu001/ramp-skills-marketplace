@@ -1,6 +1,6 @@
 'use client';
 
-import { skills } from '@/lib/skills';
+import { skillMetadata } from '@/lib/skill-metadata';
 import SkillCard from './SkillCard';
 
 type Props = {
@@ -15,12 +15,12 @@ export default function SkillMarketplace({ onExampleClick }: Props) {
           Skills Marketplace
         </h2>
         <span className="text-xs text-muted">
-          <span className="text-text font-semibold">{skills.length}</span>{' '}
+          <span className="text-text font-semibold">{skillMetadata.length}</span>{' '}
           skills
         </span>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 overflow-y-auto scroll-area pr-1 pb-2">
-        {skills.map((skill) => (
+        {skillMetadata.map((skill) => (
           <SkillCard
             key={skill.id}
             skill={skill}

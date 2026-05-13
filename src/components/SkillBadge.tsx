@@ -1,6 +1,6 @@
 'use client';
 
-import { getSkillById } from '@/lib/skills';
+import { getSkillMetaById } from '@/lib/skill-metadata';
 import { badgeClasses } from '@/lib/colors';
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default function SkillBadge({ skillId, label, size = 'sm' }: Props) {
-  const skill = getSkillById(skillId);
+  const skill = getSkillMetaById(skillId);
   if (!skill) return null;
 
   const padding = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';

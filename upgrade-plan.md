@@ -1,5 +1,13 @@
 # Upgrade Plan
 
+## Status
+
+- ✅ **§1 Skill format migration** — done (2026-05-13)
+- ⬜ §2 Agent prompts → markdown + `AGENTS.md`
+- ⬜ §3 Sensei-style role recommendation
+- ⬜ §4 Feedback + measurement layer
+- ⬜ §5 Submission bundle (memo + diagram + Loom outline)
+
 ## Why
 
 The current build is a strong technical demo (3-agent pipeline, NDJSON streaming, finance-themed skills, Dojo/Sensei naming) but under-indexes on the axes Ramp actually weighs heaviest for the *AI Product Operator* role: **enablement, distribution, and measurement**. This upgrade closes those gaps with four code changes and one submission bundle.
@@ -25,7 +33,21 @@ Mapping to gap analysis:
 
 ---
 
-## §1 — Skill format migration (TS objects → markdown)
+## §1 — Skill format migration (TS objects → markdown) ✅ DONE
+
+**Outcome:** All 6 skills are now markdown files under `skills/`. SystemPrompts loaded byte-for-byte unchanged. `npm run build` and `npm run lint` pass.
+
+**What shipped:**
+- `skills/<id>.md` × 6 — extended frontmatter (all 8 fields) + body = systemPrompt with `CHAINING_NOTE` inlined
+- `src/lib/skills.ts` — rewritten as a server-only loader (`'server-only'` import) that reads `skills/*.md` via `gray-matter` at module init. Same `Skill[]` shape, same `getSkillById()` export → zero downstream changes in `route.ts` / `orchestrator.ts` / `executor.ts`.
+- `src/lib/skill-metadata.ts` — **auto-generated** client-safe metadata snapshot (no `systemPrompt`). Imported by `SkillBadge`, `SkillMarketplace`, `SkillCard`.
+- `scripts/build-skill-metadata.mjs` — codegen script. Reads `skills/*.md`, emits the metadata TS file.
+- `package.json` — `gray-matter` + `server-only` added; `predev` / `prebuild` / `prelint` hooks regenerate the client metadata.
+- `src/lib/types.ts` — added `SkillMeta = Omit<Skill, 'systemPrompt'>`.
+
+**Resolution of the §1 open risk (client/server split):** Went with option (a) from the original plan — a generated TS snapshot for the client. The server loads markdown at runtime; the client imports a build-time artifact. Adding a 7th skill is still one markdown file with zero hand-edits (the script regenerates the snapshot via the npm pre-hooks).
+
+---
 
 **Decision recap:** Extended frontmatter — keep all 8 existing fields, body = system prompt.
 
@@ -262,15 +284,15 @@ Not the recording itself — a 60–90s script you record after the build is don
 
 ## Sequencing
 
-| Order | Task | Est. time | Why this order |
-|---|---|---|---|
-| 1 | §1 Skill format migration | 2–3h | Foundational; everything else builds on top |
-| 2 | §2 Agent prompts → markdown | 1–2h | Mirrors §1 mechanically, easy follow-up |
-| 3 | §3 Sensei role strip | 1–2h | UI-only, doesn't depend on §1 or §2 but flows naturally |
-| 4 | §4 Feedback layer | 1–2h | UI-only, independent |
-| 5 | §5a Memo | 2h | Last — best written when the full product is real |
-| 6 | §5b Diagram | 1h | Last — captures final architecture |
-| 7 | §5c Loom outline | 30m | Last — scripts the final flow |
+| Order | Task | Est. time | Status | Why this order |
+|---|---|---|---|---|
+| 1 | §1 Skill format migration | 2–3h | ✅ done | Foundational; everything else builds on top |
+| 2 | §2 Agent prompts → markdown | 1–2h | ⬜ next | Mirrors §1 mechanically, easy follow-up |
+| 3 | §3 Sensei role strip | 1–2h | ⬜ | UI-only, doesn't depend on §1 or §2 but flows naturally |
+| 4 | §4 Feedback layer | 1–2h | ⬜ | UI-only, independent |
+| 5 | §5a Memo | 2h | ⬜ | Last — best written when the full product is real |
+| 6 | §5b Diagram | 1h | ⬜ | Last — captures final architecture |
+| 7 | §5c Loom outline | 30m | ⬜ | Last — scripts the final flow |
 
 **Total: ~10–12 focused hours.** Compressible to one long day or two evening sessions.
 
@@ -278,7 +300,7 @@ Not the recording itself — a 60–90s script you record after the build is don
 
 ## Open questions (decide at implementation time)
 
-1. **Client/server skill split** — if `skills.ts` import from a client component breaks under filesystem reads, do we (a) split into `.server.ts` + `.client.ts` or (b) bake a JSON snapshot at build time? Decide when we hit the error.
+1. ~~**Client/server skill split**~~ — **Resolved in §1.** Server reads markdown at runtime (`src/lib/skills.ts`, `'server-only'`); client imports a generated TS snapshot (`src/lib/skill-metadata.ts`) produced by `scripts/build-skill-metadata.mjs` via `predev` / `prebuild` / `prelint`.
 2. **Role list** — the 5 roles in §3 are a first pass. Worth a sanity check that they map to roles a Ramp reviewer would recognize as plausible. May tune to: `Founder`, `Controller`, `AP`, `Procurement`, `FP&A`. (Drop `Founder / GM` if it feels off.)
 3. **Stats pill placement** — header or footer? Footer is cleaner but less prominent. **Default: footer, with a possible hover-expand.**
 4. **Diagram tool** — Excalidraw (hand-drawn vibe) vs. Mermaid (code-versioned) vs. Figma. Probably Excalidraw exported to PNG. Confirm at execution time.
