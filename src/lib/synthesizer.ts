@@ -1,16 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { SYNTHESIZER_SYSTEM_PROMPT } from './agents';
 import type { SkillResult } from './types';
 
 const MODEL = 'claude-sonnet-4-5';
-
-const SYSTEM_PROMPT = `You are a synthesis agent. You've received outputs from multiple finance analysis skills that were run in sequence on a user's request. Combine them into one clear, unified response.
-
-RULES:
-- Preserve all data, tables, and specific findings from each skill
-- Don't just concatenate — create a coherent narrative that flows naturally
-- Use clear section headers to separate each skill's contribution
-- End with a brief "Summary" section that ties the findings together
-- Use markdown formatting (tables, bold, headers) for readability`;
 
 function buildUserMessage(
   userMessage: string,
@@ -45,7 +37,7 @@ export async function synthesizeResults(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 3000,
-    system: SYSTEM_PROMPT,
+    system: SYNTHESIZER_SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: buildUserMessage(userMessage, results) },
     ],

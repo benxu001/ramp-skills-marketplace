@@ -23,6 +23,13 @@ skills/                       # Skill registry — one markdown file per skill
 ├── spend-anomaly-detector.md
 └── meeting-cost-calculator.md
 
+agents/                       # Agent prompts as markdown (loaded at server start)
+├── orchestrator.md           # Body = system prompt for the planner
+├── executor.md               # First fenced block = user-message template for chained steps
+└── synthesizer.md            # Body = system prompt for multi-skill merge
+
+AGENTS.md                     # Repo-root doc explaining the 3-agent pipeline
+
 scripts/
 └── build-skill-metadata.mjs  # Codegen: skills/*.md → src/lib/skill-metadata.ts
                               # Runs automatically via predev / prebuild / prelint
@@ -38,6 +45,7 @@ src/
 ├── lib/
 │   ├── skills.ts             # Server-only loader: reads skills/*.md via gray-matter
 │   ├── skill-metadata.ts     # AUTO-GENERATED client-safe metadata (no systemPrompt)
+│   ├── agents.ts             # Loads agents/*.md at module init; exports prompts
 │   ├── orchestrator.ts       # Agent 1: Plans execution — single skill or chain
 │   ├── executor.ts           # Agent 2: Runs skills in sequence, passing outputs forward
 │   ├── synthesizer.ts        # Agent 3: Combines multi-skill outputs into one response
@@ -51,7 +59,11 @@ src/
 │   └── ExecutionPlan.tsx     # Visual display of the orchestrator's plan
 ```
 
-To add a new skill: drop a `skills/<id>.md` file. The codegen step regenerates `skill-metadata.ts` on next `npm run dev` / `build` / `lint` — no other code changes needed.
+**Adding a new skill:** drop a `skills/<id>.md` file. The codegen step regenerates `skill-metadata.ts` on next `npm run dev` / `build` / `lint` — no other code changes needed.
+
+**Editing agent behavior:** orchestrator/synthesizer prompts and the executor's
+chained-step template live in `agents/*.md`. Edit the markdown and restart the
+dev server — no code change needed. See `AGENTS.md` for the full map.
 
 ## 3-Agent Pipeline
 

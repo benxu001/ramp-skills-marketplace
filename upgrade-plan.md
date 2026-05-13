@@ -3,7 +3,7 @@
 ## Status
 
 - ✅ **§1 Skill format migration** — done (2026-05-13)
-- ⬜ §2 Agent prompts → markdown + `AGENTS.md`
+- ✅ **§2 Agent prompts → markdown + `AGENTS.md`** — done (2026-05-13)
 - ⬜ §3 Sensei-style role recommendation
 - ⬜ §4 Feedback + measurement layer
 - ⬜ §5 Submission bundle (memo + diagram + Loom outline)
@@ -47,7 +47,7 @@ Mapping to gap analysis:
 
 **Resolution of the §1 open risk (client/server split):** Went with option (a) from the original plan — a generated TS snapshot for the client. The server loads markdown at runtime; the client imports a build-time artifact. Adding a 7th skill is still one markdown file with zero hand-edits (the script regenerates the snapshot via the npm pre-hooks).
 
----
+### §1 original plan (kept for reference)
 
 **Decision recap:** Extended frontmatter — keep all 8 existing fields, body = system prompt.
 
@@ -102,7 +102,22 @@ If you see a "Prior Analysis" section in the user message, this means another sk
 
 ---
 
-## §2 — Agent prompts → markdown + `AGENTS.md`
+## §2 — Agent prompts → markdown + `AGENTS.md` ✅ DONE
+
+**Outcome:** All 3 agents load behavior-identical prompts from markdown. `npm run build` and `npm run lint` pass.
+
+**What shipped:**
+- `agents/orchestrator.md`, `agents/synthesizer.md`, `agents/executor.md` — frontmatter + body.
+- `src/lib/agents.ts` — synchronous loader at module init. Exports `ORCHESTRATOR_SYSTEM_PROMPT`, `SYNTHESIZER_SYSTEM_PROMPT`, `EXECUTOR_USER_TEMPLATE`.
+- `AGENTS.md` at repo root — one-page pipeline doc.
+- `next.config.mjs` — added `experimental.outputFileTracingIncludes` so `agents/**/*.md` ships with the `/api/chat` Vercel bundle. (Must stay nested under `experimental` until we upgrade to Next 15. §1 chose codegen instead, so this only covers `agents/`; folding agents into the codegen pattern is a possible v2 cleanup.)
+- Project `CLAUDE.md` architecture section updated to point at the new layout.
+
+**Deviations from the original plan:**
+- **No `gray-matter` dependency for agents.** Agent frontmatter is flat key:value, so a 10-line `stripFrontmatter()` helper in `src/lib/agents.ts` covers it. (`gray-matter` is now in the project anyway via §1, so a future cleanup could switch to it for consistency.)
+- **Executor markdown is mostly documentation.** The executor has no traditional system prompt — it dispatches to each skill's `systemPrompt`. So `agents/executor.md`'s body is prose, and the runtime user-message template (with `{{PRIOR_BLOCK}}` / `{{USER_MESSAGE}}` placeholders) lives in the *first fenced code block* of the body. The loader extracts that block via regex. This convention should be reused if other agents grow into the same shape.
+
+### §2 original plan (kept for reference)
 
 **Decision recap:** Webapp agents only. No `.claude/agents/` CLI subagents.
 
@@ -286,15 +301,17 @@ Not the recording itself — a 60–90s script you record after the build is don
 
 | Order | Task | Est. time | Status | Why this order |
 |---|---|---|---|---|
-| 1 | §1 Skill format migration | 2–3h | ✅ done | Foundational; everything else builds on top |
-| 2 | §2 Agent prompts → markdown | 1–2h | ⬜ next | Mirrors §1 mechanically, easy follow-up |
-| 3 | §3 Sensei role strip | 1–2h | ⬜ | UI-only, doesn't depend on §1 or §2 but flows naturally |
+| 1 | §1 Skill format migration | 2–3h | ✅ done 2026-05-13 | Foundational; everything else builds on top |
+| 2 | §2 Agent prompts → markdown | 1–2h | ✅ done 2026-05-13 | Mirrors §1 mechanically, easy follow-up |
+| 3 | §3 Sensei role strip | 1–2h | ⬜ next | UI-only, doesn't depend on §1 or §2 but flows naturally |
 | 4 | §4 Feedback layer | 1–2h | ⬜ | UI-only, independent |
 | 5 | §5a Memo | 2h | ⬜ | Last — best written when the full product is real |
 | 6 | §5b Diagram | 1h | ⬜ | Last — captures final architecture |
 | 7 | §5c Loom outline | 30m | ⬜ | Last — scripts the final flow |
 
 **Total: ~10–12 focused hours.** Compressible to one long day or two evening sessions.
+
+**Sequencing note (post-§2):** §2 was implemented before §1, even though the plan recommended §1 first. The order swap was harmless because the two are independent (agents and skills are different files), but it means §1 now needs to mirror the loader pattern already established by §2 — see `src/lib/agents.ts` for the shape and pick `gray-matter` for the skill frontmatter parsing since skills have array-typed fields.
 
 ---
 
